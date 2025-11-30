@@ -1,0 +1,17 @@
+{
+  "script": {
+    "start": "npm run server.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^5.4.0",
+    "axios": "^1.8.1",
+    "blob-polyfill": "^9.0.20240710",
+    "buffer": "^6.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "form-data": "^4.0.2",
+    "https": "^1.0.0",
+    "node-fetch": "^2.7.0"
+  }
+}

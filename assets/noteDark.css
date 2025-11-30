@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@100;200;300;400;500;600;700&display=swap');
+
+:root{    
+    --background: #002a49;
+    --background-2: #004377;
+    --background-3: #000b2b;
+    --color: #f8faff;
+    --color-2: #60636b;
+    --point-1 : rgba(209, 0, 0, 0.623);
+    --point-2 : #f8faff;
+    --line: rgba(0,0,0,.06);
+    --line-2: rgba(0,0,0,.2);
+    --button-radius: 8px;
+    --hover:rgba(0,0,0,.03);
+    --white: #fff;
+}
+
+
+body {background-color:var(--background-3); font-family: 'IBM Plex Sans KR', sans-serif;}
+
+.code-works .head {border-radius:0; background-color: var(--background-3);}
+.code-works .head .logo {background-color: var(--background-2);}
+.code-works .head .find-string,
+.tabs .tab {color:var(--point-2);}
+.tabs .tab.active {border-color:var(--point-1); border-style: double; border-width:0 0 4px 0;}
+.find-string input {border-width:0 0 3px 0; border-style:double; border-color:var(--point-1); background-color: var(--background-3);}
+.find-string input:hover,
+.find-string input:focus {outline: none;background-color: var(--background-3);}
+.find-string button {background-color:var(--background-3);color: var(--color);}
+
+.work-list {border:1px solid var(--point-2); padding-bottom:15px;}
+.work-list:before {content:''; position:absolute; width:110px; height:100%; border-color:var(--point-1); border-style: double; border-width:0 4px 0 0}
+.work-list .ul {margin-top:15px;}
+.li {padding: 4px 15px;}
+.li + .li {border-top: 1px solid #e3ebf5;}
+li.week-devide + .li {border-top: 1px solid #e3ebf5;}
+.li.week-devide {border-color: rgba(255, 0, 0, 0.37);}
+.li.current {background-color:rgb(255 183 0 / 10%);}
+.li.list-checked {background-color:rgb(0 166 255 / 10%);}
+.li.ended.list-checked {background-color:rgb(0 54 82 / 33%);}
+.li button {border:0; border-radius:2px;}
+.li .title {font-weight:normal; margin:0; color:var(--color); top:1px;}
+.li .date {margin-right:20px;text-align: center;}
+.li .deploy-file {background-color: var(--point-2);}
+.li .url {background-color: #6bbcf7;}
+.li .month {color: var(--point-2);}
+
+.layer {background-color: transparent;} 
+.layer .cont {border-radius: var(--button-radius);border-radius: 12px;border:2px solid var(--point-2); box-shadow: 6px 6px var(--point-2);font-family: 'IBM Plex Sans KR', sans-serif;} 
+.layer .cont .str {padding: 0;background-color: var(--background-3);}
+
+.js-toDoForm {border-radius: 0;}
+.js-toDoForm.avoid > * {opacity: 0.9;}
+.js-toDoForm input:focus, .js-toDoForm textarea:focus {background-color: var(--white);}
+#Ysubmit {color: var(--background-2);}
+.side {background-color: var(--background);}
+.side .btn-file {color: var(--point-2);}
+
+#keywords {padding: 20px 0 0;border-radius: 0;border: 0 none;border-top: 1px solid var(--line);}
+#keywords::before {color: var(--point-2);}
+
+.keyword {display:inline-block; border-radius:4px; padding:2px 8px; margin-right:6px; margin-bottom:4px; white-space:nowrap; background-color:var(--background-3); color:var(--white)}
+.keyword.active {background-color: var(--white);color: var(--background-3);}
+
+#mmCont {padding: 20px 0 0 !important;border-radius: 0 !important;border: 0 none !important;border-top: 1px solid var(--line) !important;}
+#mmCont::before {color: var(--point-2) !important;}
+
+.layer .cont .str::-webkit-scrollbar,
+#keywords::-webkit-scrollbar,
+#mmCont::-webkit-scrollbar {width: 5px;}
+.layer .cont .str::-webkit-scrollbar-track,
+#keywords::-webkit-scrollbar-track,
+#mmCont::-webkit-scrollbar-track {background-color: var(--background-3);}
+.layer .cont .str::-webkit-scrollbar-thumb,
+#keywords::-webkit-scrollbar-thumb,
+#mmCont::-webkit-scrollbar-thumb {background-color: var(--point-2);}
+
+.li.edit .edit-url,
+.li.edit .edit-date,
+.li.edit .edit-month, 
+.li.edit .edit-title {border-radius: 4px;border: 2px solid var(--background-2);padding: 0px 5px;}
+.li.edit .edit-detail {padding: 10px;border: 2px solid var(--background-2);box-shadow: 6px 6px var(--background-2);}
+
+.li .end-button {opacity: 1;background-color: var(--point-2);}
+.li .edit-button {background-color: var(--point-2);}
+.li .delete-button {background-color: var(--point-1);}
+.li .save-button {background-color: var(--point-2);}
+.li .cancel-button {background-color: var(--point-1);}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="./assets/images/favicon.ico" />
+	<title>Todo List</title>
+	<link rel="stylesheet" href="./assets/style.css">
+</head>
+
+<body>
+	<div class="code-works">
+		<div class="head">
+			<h1 class="logo">Todo List</h1>
+			<div class="tabs"></div>
+			<button class="toggle-side">toogle side</button>
+		</div>
+
+		<form class="js-toDoForm">
+			<div class="fields">
+				<div class="date-title">
+					<input type="date" id="Ydate" value="" autocomplete="off" />
+					<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
+					<input type="number" id="Ymonth" step="0.01" placeholder="M/M" autocomplete="off" />
+				</div>
+				<div class="url">
+					<input type="text" id="Yurl" placeholder="notion URL" />
+					<input type="text" id="Ycommit" placeholder="커밋 메시지" />
+				</div>
+				<div class="detail">
+					<textarea id="Ydeploy" rows="3" placeholder="업무내용" autocomplete="off"></textarea>
+				</div>
+			</div>
+			<div class="submit">
+				<button id="Ysubmit" type="button">Add</button>
+			</div>
+		</form>
+
+		<div class="work-summary">
+			총 개수 : <span id="count"></span>
+		</div>
+		<div class="content">
+			<div class="work-list">
+				<ul class="ul" id="todo-list">
+					<!-- {} -->
+				</ul>
+			</div>
+		</div>
+	</div>
+
+	<div class="side" id="side">
+		<div class="how">
+			<button id="save-button" class="btn-file">Save as JSON file</button>
+			<button id="load-button" class="btn-file">Load JSON file</button> <input type="file" id="file-input" accept=".json">
+			<button id="copy-button" class="btn-file">Copy JSON file</button>
+			<button id="upload-button" class="btn-file upload-button">Upload JSON file <span id="last-upload-info"></span></button>
+		</div>
+		<div class="find-string">
+			<input type="text" id="find_file_string" placeholder="Detail 에서 검색"> <button id="find_string">Find</button>
+		</div>
+		<button class="toggle-side">toogle side</button>
+	</div>
+
+	<script src="./assets/script.js"></script>
+</body>
+
+</html>

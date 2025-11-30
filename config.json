@@ -1,0 +1,60 @@
+{
+    "system_settings": {
+      "version": "1.0"
+    },
+    "notionID": "",
+    "notionAPI": "",
+    "theme" : "dark.css",
+    "limit" : 100,
+    "uploadLastDay" : 30,
+    "plugins" : [
+      "ui.js",
+      "month.js"
+    ],
+    "users": [
+      {
+        "id": "leepl",
+        "name": "이PL",
+        "role": "master",
+        "permissions": {
+          "system_control": true,
+          "user_management": true,
+          "content_modification": true
+        },
+        "department" : "myteam",
+        "active": true
+      },
+      {
+        "id": "leesilver",
+        "name": "Lee silver",
+        "role": "member",
+        "permissions": {
+          "system_control": false,
+          "user_management": false,
+          "content_modification": false
+        },
+        "department" : "myteam",
+        "active": true
+      },
+      {
+        "id": "ss_speak",
+        "name": "손speak",
+        "role": "member",
+        "permissions": {
+          "system_control": false,
+          "user_management": false,
+          "content_modification": false
+        },
+        "department" : "myteam",
+        "active": true
+      }
+    ],
+    "features": {
+      "enable_analytics": true,
+      "auto_update": false,
+      "backup_settings": {
+        "interval": "daily",
+        "retention_days": 7
+      }
+    }
+  }
