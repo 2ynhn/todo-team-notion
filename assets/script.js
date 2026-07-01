@@ -667,6 +667,12 @@ function formatDateYYYYMMDD(d) {
 	return `${yyyy}${mm}${dd}`;
 }
 
+function formatTimeHHMM(d) {
+	const hh = String(d.getHours()).padStart(2, '0');
+	const mm = String(d.getMinutes()).padStart(2, '0');
+	return `${hh}:${mm}`;
+}
+
 // 설정 화면의 "JSON 다운로드" 버튼: 실제 파일로 다운로드한다.
 // (#save-button 은 saveTodos()가 내부적으로 서버에 자동 저장할 때만 쓰는 숨김 버튼이라 별도로 둔다)
 const downloadButton = document.getElementById('download-button');
@@ -689,21 +695,25 @@ if (downloadButton) {
 
 // document.getElementById('upload-button').addEventListener('click', async () => {
 document.documentElement.addEventListener('click', async (event) => {
-	if (event.target.classList.contains('upload-button')) {
+	// 버튼 안의 <span> 텍스트를 클릭하면 event.target이 span이 되어
+	// classList.contains('upload-button')이 false가 되던 문제를 closest()로 수정
+	const uploadTarget = event.target.closest('.upload-button');
+	if (uploadTarget) {
 		// try {
-		fnLoadingInButton('.upload-button');
+		fnLoadingInButton(uploadTarget);
 
 		let uploadTodo = todos;
 		if(uploadLastDay > 0){
 			uploadTodo = getRecentTodos(todos, uploadLastDay);
 		}
 
-		console.log('json 글자 수가 '+ JSON.stringify({ uploadTodo }).length + ' 입니다.');
+		const charLen = JSON.stringify({ uploadTodo }).length;
+		console.log('json 글자 수가 '+ charLen + ' 입니다.');
 		const info = document.querySelector('#last-upload-info');
-		info.innerHTML = '(업로드 된 문자 수: '+ JSON.stringify({ uploadTodo }).length +')';
+		info.innerHTML = '(업로드 된 문자 수: '+ charLen +')';
 
-		if(JSON.stringify({ uploadTodo }).length > 20000) {
-			alert('json 글자 수가 '+ JSON.stringify({ uploadTodo }).length + ' 입니다. config에서 "uploadLastDay" 값을 변경해 주세요. 일단 오늘은 올려드리겠습니다.')
+		if(charLen > 20000) {
+			alert('json 글자 수가 '+ charLen + ' 입니다. config에서 "uploadLastDay" 값을 변경해 주세요. 일단 오늘은 올려드리겠습니다.')
 		}
 		const ok = await updateNotionFile(masterId, uploadTodo);
 		console.log(ok);
@@ -711,6 +721,7 @@ document.documentElement.addEventListener('click', async (event) => {
 		checkMotion(event);
 		if (ok) {
 			lastSyncAt = new Date();
+			info.innerHTML = '(문자 수: '+ charLen +' · '+ formatTimeHHMM(lastSyncAt) +' 업로드됨)';
 			document.dispatchEvent(new CustomEvent('todos:uploaded'));
 		}
 
