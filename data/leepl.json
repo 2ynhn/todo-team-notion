@@ -1,5 +1,11 @@
 [
   {
+    "id": "pfasvk7mrg8",
+    "title": "test2",
+    "date": "2026-07-01",
+    "ended": false
+  },
+  {
     "id": "p0bi9fp4b305b",
     "date": "2026-01-01",
     "title": "<span style='color:var(--point-2); font-size:.9rem'>공지글 작성 방법</span>",
