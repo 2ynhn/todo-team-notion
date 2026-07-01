@@ -167,7 +167,9 @@ a {text-decoration:none; color:var(--color);}
 .tabs .tab.active {background:var(--background-2); color:var(--color); font-weight:700;}
 
 .js-toDoForm {background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px 16px; display:flex; flex-direction:column; gap:0;}
-.js-toDoForm .fields {display:grid; grid-template-columns:110px 1fr 90px 1fr; gap:10px 12px;}
+.js-toDoForm .fields {display:flex; flex-direction:column; gap:10px;}
+.field-row-main {display:grid; grid-template-columns:110px 1fr 90px 1fr; gap:10px 12px;}
+.field-row-sub, .field-row-detail {display:grid; grid-template-columns:1fr; gap:10px 12px;}
 .field label {display:block; font-size:10.5px; color:var(--color-2); margin-bottom:4px; font-weight:600;}
 .field input, .field textarea {
     width:100%; height:30px; border-radius:var(--radius-sm); background:var(--background);
@@ -176,46 +178,51 @@ a {text-decoration:none; color:var(--color);}
 }
 .field input:focus, .field textarea:focus {outline:none; box-shadow:var(--ring);}
 .field textarea {height:auto; padding:8px 9px; resize:vertical;}
-.field-hidden {display:none;}
 .js-toDoForm .submit {display:flex; justify-content:flex-end; margin-top:10px;}
 #Ysubmit {padding:7px 16px; border-radius:7px; background:var(--point-2); color:#fff; font-size:12px; font-weight:700; transition:filter var(--ease);}
 #Ysubmit:hover {filter:brightness(1.06);}
 
 .task-body {flex:1; display:flex; gap:16px; min-height:0;}
-.task-list-card {flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;}
+.task-list-card {
+    --row-cols: 16px 76px 1.6fr 56px 64px 1fr 108px;
+    flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;
+}
 .task-list-head {display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line);}
 .task-list-title {font-weight:700; font-size:13px; color:var(--color);}
 .task-list-filters {display:flex; gap:6px; margin-left:8px;}
-.chip {padding:4px 10px; border-radius:999px; color:var(--color-2); font-size:11px;}
+.chip {padding:4px 10px; border-radius:999px; color:var(--color-2); font-size:11px; transition:all var(--ease);}
+.chip:hover {background:var(--hover); color:var(--color);}
 .chip-active {background:#eef2ff; color:var(--point-2); font-weight:700;}
+.chip-active:hover {background:#eef2ff; color:var(--point-2);}
 .work-summary {margin-left:auto; font-size:12px; font-weight:600; color:var(--color-2);}
 
-.grid-head {display:flex; align-items:center; gap:10px; padding:8px 16px; font-size:10.5px; font-weight:700; color:var(--color-2); letter-spacing:.04em; text-transform:uppercase; border-bottom:1px solid var(--line);}
-.grid-head > div:nth-child(1) {flex:0 0 8px;}
-.grid-head > div:nth-child(2) {flex:0 0 76px;}
-.grid-head > div:nth-child(3) {flex:1;}
-.grid-head > div:nth-child(4) {flex:0 0 66px;}
-.grid-head > div:nth-child(5) {flex:0 0 150px; text-align:right;}
+.grid-head {display:grid; grid-template-columns:var(--row-cols); align-items:center; gap:10px; padding:8px 16px; font-size:10.5px; font-weight:700; color:var(--color-2); letter-spacing:.04em; text-transform:uppercase; border-bottom:1px solid var(--line);}
+.grid-head > div:nth-child(4), .grid-head > div:nth-child(5) {text-align:center;}
+.grid-head > div:last-child {text-align:right;}
 
 .work-list {flex:1; overflow:auto; font-size:12.5px;}
 .ul {}
 
 .li {
-    position:relative; display:flex; align-items:center; gap:10px; width:100%;
+    position:relative; display:grid; grid-template-columns:var(--row-cols); align-items:center; gap:10px; width:100%;
     padding:9px 16px; line-height:1.5; transition:background-color var(--ease);
 }
-.li::before {content:''; flex:0 0 8px; width:8px; height:8px; border-radius:50%; background:var(--point-2);}
+.li::before {content:''; width:8px; height:8px; border-radius:50%; background:var(--point-2);}
 .li.ended::before {background:var(--color-2);}
 .li.day-in-1:not(.ended)::before, .li.day-in-2:not(.ended)::before, .li.day-in-3:not(.ended)::before {background:var(--danger);}
 .li:hover {background-color:var(--hover);}
 .li + .li {border-top:1px solid var(--line);}
 .li.week-devide + .li {border-top:1px solid var(--line-2);}
-.li .date-title {display:flex; align-items:center; gap:8px; flex:1; min-width:0;}
-.li .date {flex:0 0 68px; font-size:11.5px; color:var(--color-2); font-family:var(--font-mono);}
-.li .title {flex:1; min-width:0; font-size:12.5px; color:var(--color); overflow-wrap:anywhere;}
+.li .date {font-size:11.5px; color:var(--color-2); font-family:var(--font-mono);}
+.li .title {min-width:0; font-size:12.5px; color:var(--color); overflow-wrap:anywhere;}
 .li .month {display:none;}
-.li .deploy {display:none; flex-basis:100%;}
-.li .functions {flex:0 0 150px; display:flex; align-items:center; justify-content:flex-end; gap:8px; white-space:nowrap; font-size:.8rem;}
+.li .col-mm {text-align:center; font-size:12px; font-weight:700; color:var(--point-2);}
+.li .col-mm.is-empty {font-weight:400; color:var(--color-2);}
+.li .col-notion, .li .col-commit {min-width:0; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.li .col-commit {text-align:left; font-size:11.5px; font-family:var(--font-mono); color:var(--color-2);}
+.li .col-empty {color:var(--color-2); opacity:.6;}
+.li .deploy {display:none; grid-column:1 / -1;}
+.li .functions {display:flex; align-items:center; justify-content:flex-end; gap:8px; white-space:nowrap; font-size:.8rem;}
 .li .functions button {font-size:.8rem;}
 
 li.day-in0 .date {color:var(--point-2); font-weight:700;}
@@ -440,8 +447,10 @@ button:has( > .loading-in-button), a:has( > .loading-in-button) {position:relati
     .rail {width:56px;}
     .rail-item {width:40px;}
     .topbar-search {width:140px;}
-    .js-toDoForm .fields {grid-template-columns:1fr 1fr;}
+    .field-row-main {grid-template-columns:1fr 1fr;}
     .team-summary {grid-template-columns:1fr;}
+    .task-list-card {--row-cols: 16px 70px 1.6fr 50px 1fr 92px;}
+    .grid-head > div:nth-child(6), .li .col-commit {display:none;}
 }
 @media (max-width:600px) {
     .topbar-search {display:none;}

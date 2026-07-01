@@ -65,25 +65,35 @@
 
 					<form class="js-toDoForm">
 						<div class="fields">
-							<div class="field">
-								<label>날짜</label>
-								<input type="date" id="Ydate" value="" autocomplete="off" />
+							<div class="field-row field-row-main">
+								<div class="field">
+									<label>날짜</label>
+									<input type="date" id="Ydate" value="" autocomplete="off" />
+								</div>
+								<div class="field field-title">
+									<label>업무 내용</label>
+									<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
+								</div>
+								<div class="field field-mm">
+									<label>M/M</label>
+									<input type="number" id="Ymonth" step="0.0625" placeholder="0.0" autocomplete="off" />
+								</div>
+								<div class="field field-url">
+									<label>Notion URL</label>
+									<input type="text" id="Yurl" placeholder="notion.so/…" />
+								</div>
 							</div>
-							<div class="field field-title">
-								<label>업무 내용</label>
-								<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
+							<div class="field-row field-row-sub">
+								<div class="field field-commit">
+									<label>커밋 키워드</label>
+									<input type="text" id="Ycommit" placeholder="커밋 키워드" autocomplete="off" />
+								</div>
 							</div>
-							<div class="field field-mm">
-								<label>M/M</label>
-								<input type="number" id="Ymonth" step="0.0625" placeholder="0.0" autocomplete="off" />
-							</div>
-							<div class="field field-url">
-								<label>Notion URL</label>
-								<input type="text" id="Yurl" placeholder="notion.so/…" />
-							</div>
-							<div class="field field-hidden">
-								<input type="text" id="Ycommit" placeholder="커밋 메시지" />
-								<textarea id="Ydeploy" rows="3" placeholder="업무내용 상세"></textarea>
+							<div class="field-row field-row-detail">
+								<div class="field field-detail">
+									<label>업무내용 상세</label>
+									<textarea id="Ydeploy" rows="3" placeholder="업무내용 상세"></textarea>
+								</div>
 							</div>
 						</div>
 						<div class="submit">
@@ -95,15 +105,15 @@
 						<div class="task-list-card">
 							<div class="task-list-head">
 								<div class="task-list-title">업무 리스트</div>
-								<div class="task-list-filters">
-									<span class="chip chip-active">전체</span>
-									<span class="chip">진행중</span>
-									<span class="chip">완료</span>
+								<div class="task-list-filters" id="task-status-filters">
+									<button type="button" class="chip chip-active" data-status-filter="all">전체</button>
+									<button type="button" class="chip" data-status-filter="active">진행중</button>
+									<button type="button" class="chip" data-status-filter="done">완료</button>
 								</div>
 								<div class="work-summary">총 개수 : <span id="count"></span></div>
 							</div>
 							<div class="grid-head">
-								<div></div><div>날짜</div><div>업무 내용</div><div>M/M</div><div>기능</div>
+								<div></div><div>날짜</div><div>업무 내용</div><div>M/M</div><div>Notion</div><div>커밋</div><div>기능</div>
 							</div>
 							<div class="work-list">
 								<ul class="ul" id="todo-list">
@@ -213,10 +223,13 @@
 							<div class="card-title">데이터 관리</div>
 							<div class="data-actions">
 								<button id="load-button" class="btn-file" type="button">JSON 불러오기</button>
-								<button id="save-button" class="btn-file" type="button">JSON 다운로드</button>
+								<button id="download-button" class="btn-file" type="button">JSON 다운로드</button>
 								<button id="copy-button" class="btn-file" type="button">클립보드 복사</button>
 							</div>
 							<input type="file" id="file-input" accept=".json">
+							<!-- 서버 자동 저장(POST /save) 전용 내부 버튼. saveTodos()가 add/edit/delete 시마다
+							     프로그램적으로 클릭한다. 사용자에게는 노출하지 않는다(다운로드는 #download-button). -->
+							<button id="save-button" type="button" hidden></button>
 						</div>
 					</div>
 				</section>

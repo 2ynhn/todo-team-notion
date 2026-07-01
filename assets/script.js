@@ -184,9 +184,9 @@ async function loadTodoData(userId) {
 		// --------------- localStorage.setItem('todos', JSON.stringify(todoData));
 	} else {
 		const fileContent = await fetchNotionFiles(userId);
-		console.log(fileContent.todos)
-		// todos = JSON.parse(fileContent.todos);
-		todos = fileContent.todos;
+		// fetchNotionFiles는 로드 실패 시 (alert 후) null을 반환한다
+		todos = (fileContent && fileContent.todos) || [];
+		console.log(todos);
 		activeUser = userId;
 		countingTodo(todos);
 		renderTodos(todos.slice(0, limit));
@@ -229,6 +229,51 @@ async function renderLimitTodos() {
 	}
 }
 
+// 목록/편집-저장 뷰 두 곳에서 동일한 행 마크업을 쓰기 위한 공용 빌더.
+// 노션 URL / 커밋 / M-M / detail 중 값이 없는 항목이 있어도 열이 항상 맞도록
+// (grid-head 와 동일한 --row-cols 그리드에 맞춰) 빈 칸(placeholder)을 채운다.
+function buildTodoRowHTML(todo, isMaster) {
+	const hasUrl = !!(todo.url && todo.url !== 'undefined');
+	const urlCell = hasUrl
+		? `<a href="${todo.url}" class="url" title="${todo.url}" target="_blank">Notion</a>`
+		: `<span class="col-empty">–</span>`;
+
+	const hasCommit = !!todo.commit;
+	const commitCell = hasCommit
+		? `<span class="commit-text" title="${todo.commit}">${todo.commit}</span>`
+		: `<span class="col-empty">–</span>`;
+
+	const hasMonth = todo.month !== undefined && todo.month !== null && todo.month !== '';
+	const mmCell = hasMonth ? todo.month : '–';
+
+	const hasDetail = !!(todo.detail || todo.commit);
+	const detailBtn = hasDetail
+		? `<button onclick="deployView(this);" class="deploy-file" title="상세 보기"></button>`
+		: '';
+
+	let functionsHTML = detailBtn;
+	if (isMaster) {
+		const endBtn = todo.ended !== true
+			? `<button class="end-button" data-id="${todo.id}" title="완료 처리"></button>`
+			: '';
+		functionsHTML += `
+			${endBtn}
+			<button class="edit-button" data-id="${todo.id}" title="편집"></button>
+			<button class="delete-button" data-id="${todo.id}" title="삭제"></button>
+		`;
+	}
+
+	return `
+		<span class="date">${todo.date ?? ''}</span>
+		<span class="title">${todo.title ?? ''}</span>
+		<span class="col-mm${hasMonth ? '' : ' is-empty'}">${mmCell}</span>
+		<div class="col-notion">${urlCell}</div>
+		<div class="col-commit">${commitCell}</div>
+		<p class="functions">${functionsHTML}</p>
+		<div class="deploy"><pre>${todo?.detail ?? ''}</pre></div>
+	`;
+}
+
 function renderTodos(todos) {
 	todoList.innerHTML = '';
 	if (todos.length === 0) {
@@ -236,98 +281,41 @@ function renderTodos(todos) {
 	}
 	todos.sort((a, b) => new Date(b.date) - new Date(a.date)); //sort by date
 
+	const isMaster = masterId === activeUser;
+
 	todos.forEach((todo, index) => {
 		const li = document.createElement('li');
-		let urlStr = ``;
-		let endStr = ``;
 		li.dataset.index = index; // 데이터셋에 index 저장 (수정 시 활용)
 		li.classList.add('li');
 		li.setAttribute('id', todo.id);
+
 		if (todo.deploy && typeof todo.deploy !== 'undefined') {
 			todo.detail = todo.deploy;
 			delete todo.deploy;
-		} else if (todo.detail && typeof todo.detail !== 'undefined') {
-			todo.detail = todo.detail;
-		} else {
-			// todo.detail = '';
 		}
 		if (todo.notion && typeof todo.notion !== 'undefined') {
 			todo.url = todo.notion;
-		} else if (todo.url && typeof todo.url !== 'undefined') {
-			todo.url = todo.url;
-		} else {
-			// todo.url = '';
 		}
-		if (todo.month && typeof todo.month !== 'undefined') {
-			todo.month = todo.month;
-		} else {
-			// todo.month = '';
+		if (todo.ended === true) {
+			li.classList.add('ended');
 		}
 
-		// deploy 파일 여부 확인
-		var deployFiles;
-		if (todo.detail || todo.commit) {
-			deployFiles = '<button onclick="deployView(this);" class="deploy-file">Detail</button>';
-		} else {
-			deployFiles = '';
-		}
+		li.innerHTML = buildTodoRowHTML(todo, isMaster);
 
-		if (masterId === activeUser) {
-			// master 유저 인 경우
-			if (todo.url !== 'undefined' && todo.url) {
-				urlStr = `<a href="${todo.url}" class="url" title="${todo?.url ?? ''}" target="_blank">URL</a>`;
-			}
-			if (todo.ended !== true) {
-				endStr = `<button class="end-button" data-id="${todo.id}">Finish</button>`;
-			} else {
-				li.classList.add('ended');
-			}
-			li.innerHTML = `
-                <p class="date-title">
-                    <span class="date">${todo.date}</span>
-                    <span class="title">${todo.title}</span>
-                    <span class="month">${todo?.month ?? ''}</span>
-                    ${deployFiles}
-                    ${urlStr}
-                </p>
-                <p class="functions">
-                    ${endStr}
-                    <button class="edit-button" data-id="${todo.id}">Edit</button>
-                    <button class="delete-button" data-id="${todo.id}">Delete</button>
-                </p>
-                <div class="deploy"><pre>${todo?.month ?? ''}</pre></div>
-            `;
-
+		if (isMaster) {
 			const editButton = li.querySelector('.edit-button');
 			editButton.addEventListener('click', () => {
 				bindEdit(todo);
 			});
-		} else {
-			// member 유저 인 경우 view만 제공공
-			if (todo.url !== 'undefined' && todo.url) {
-				urlStr = `<a href="${todo.url}" class="url" title="${todo.url}" target="_blank">URL</a>`;
-			}
-			if (todo.ended === true) {
-				li.classList.add('ended');
-			}
-			li.innerHTML = `
-                <p class="date-title">
-                    <span class="date">${todo.date}</span>
-                    <span class="title">${todo.title}</span>
-					<span class="month">${todo?.month ?? ''}</span>
-                    ${deployFiles}
-                    ${urlStr}
-                </p>
-                <p class="functions">
-                </p>
-                <div class="deploy"><pre>${todo.detail}</pre></div>
-            `;
 		}
 
 		todoList.appendChild(li);
 	});
 
 	document.getElementById('Ydate').valueAsDate = new Date();
+	if (typeof applyTaskFilters === 'function') {
+		applyTaskFilters();
+	}
 
 	// plugins init
 	fetch('./config.json')
@@ -395,46 +383,12 @@ function editSave(id) {
 	};
 	todos[index] = removeEmptyKeys(newObj);
 
-	let detailCont;
-	newObj.detail ? (detailCont = '<button onclick="deployView(this);" class="deploy-file">Detail</button>') : (detailCont = '');
-
-	let urlStr;
-	newObj.url ? (urlStr = `<a href="${newObj.url}" class="url" title="${newObj.url}" target="_blank">URL</a>`) : (urlStr = '');
-
-	let endStr;
-	newObj.ended ? (endStr = '') : (endStr = `<button class="end-button" data-id="${editID}">Finish</button>`);
-
-	li.innerHTML = `
-		<p class="date-title">
-			<span class="date">${newObj.date}</span>
-			<span class="title">${newObj.title}</span>
-			<span class="month">${newObj?.month ?? ''}</span>
-			${detailCont}
-			${urlStr}
-		</p>
-		<p class="functions">
-			${endStr}
-			<button class="edit-button" data-id="${editID}">Edit</button>
-			<button class="delete-button" data-id="${editID}">Delete</button>
-		</p>
-		<div class="deploy"><pre>${newObj.detail}</pre></div>
-	`;
-	li.classList.remove('edit');
-	const editButton = li.querySelector('.edit-button');
-	editButton.addEventListener('click', function () {
-		bindEdit(newObj);
-	});
-
 	saveTodos(); // 서버에 저장
 	syncMasterAggregate();
 	if (typeof mMonthInit !== 'undefined') {
 		mMonthInit(todos);
 	}
-	if (newObj.ended !== true) {
-		li.classList.remove('ended');
-	} else {
-		li.classList.add('ended');
-	}
+	// renderTodos()가 #todo-list 전체를 새로 그리므로 이 li에 대한 수동 갱신은 불필요
 	renderTodos(todos); // 화면 다시 렌더링
 }
 
@@ -716,6 +670,33 @@ document.getElementById('copy-button').addEventListener('click', async (e) => {
 	}
 });
 
+function formatDateYYYYMMDD(d) {
+	const yyyy = d.getFullYear();
+	const mm = String(d.getMonth() + 1).padStart(2, '0');
+	const dd = String(d.getDate()).padStart(2, '0');
+	return `${yyyy}${mm}${dd}`;
+}
+
+// 설정 화면의 "JSON 다운로드" 버튼: 실제 파일로 다운로드한다.
+// (#save-button 은 saveTodos()가 내부적으로 서버에 자동 저장할 때만 쓰는 숨김 버튼이라 별도로 둔다)
+const downloadButton = document.getElementById('download-button');
+if (downloadButton) {
+	downloadButton.addEventListener('click', (e) => {
+		const dateStr = formatDateYYYYMMDD(new Date());
+		const fileName = `${activeUser}_${dateStr}.json`;
+		const blob = new Blob([JSON.stringify(todos, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = fileName;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+		checkMotion(e);
+	});
+}
+
 // document.getElementById('upload-button').addEventListener('click', async () => {
 document.documentElement.addEventListener('click', async (event) => {
 	if (event.target.classList.contains('upload-button')) {
@@ -912,21 +893,52 @@ async function initTopbarChrome() {
 	}
 
 	if (search) {
-		search.addEventListener('input', () => {
-			const q = search.value.trim().toLowerCase();
-			document.querySelectorAll('#todo-list .li').forEach((li) => {
-				if (!q) { li.style.display = ''; return; }
-				const text = (li.querySelector('.title')?.textContent || '').toLowerCase();
-				const detail = (li.querySelector('.deploy')?.textContent || '').toLowerCase();
-				li.style.display = (text.includes(q) || detail.includes(q)) ? '' : 'none';
-			});
-		});
+		search.addEventListener('input', applyTaskFilters);
 	}
+
+	initTaskStatusFilters();
 
 	document.addEventListener('todos:uploaded', () => {
 		if (document.getElementById('view-sync') && !document.getElementById('view-sync').hidden) {
 			renderSyncView();
 		}
+	});
+}
+
+/* ---------------------- 업무 리스트: 전체/진행중/완료 필터 + 검색 ---------------------- */
+let taskStatusFilter = 'all'; // 'all' | 'active' | 'done'
+
+function initTaskStatusFilters() {
+	const wrap = document.getElementById('task-status-filters');
+	if (!wrap) return;
+	wrap.addEventListener('click', (e) => {
+		const btn = e.target.closest('button[data-status-filter]');
+		if (!btn) return;
+		taskStatusFilter = btn.dataset.statusFilter;
+		wrap.querySelectorAll('button[data-status-filter]').forEach((b) => {
+			b.classList.toggle('chip-active', b === btn);
+		});
+		applyTaskFilters();
+	});
+}
+
+// 상태 필터(전체/진행중/완료) + 상단 검색어를 함께 적용한다.
+// renderTodos()가 목록을 새로 그릴 때마다 다시 호출되어야 필터 상태가 유지된다.
+function applyTaskFilters() {
+	const search = document.getElementById('topbar-search');
+	const query = (search ? search.value : '').trim().toLowerCase();
+	document.querySelectorAll('#todo-list .li').forEach((li) => {
+		const matchesStatus =
+			taskStatusFilter === 'done' ? li.classList.contains('ended') :
+			taskStatusFilter === 'active' ? !li.classList.contains('ended') :
+			true;
+		let matchesQuery = true;
+		if (query) {
+			const text = (li.querySelector('.title')?.textContent || '').toLowerCase();
+			const detail = (li.querySelector('.deploy')?.textContent || '').toLowerCase();
+			matchesQuery = text.includes(query) || detail.includes(query);
+		}
+		li.style.display = (matchesStatus && matchesQuery) ? '' : 'none';
 	});
 }
 
