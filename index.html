@@ -5,65 +5,224 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="icon" href="./assets/images/favicon.ico" />
-	<title>Todo List</title>
+	<title>PYBC Ops</title>
 	<link rel="stylesheet" href="./assets/style.css">
 </head>
 
 <body>
-	<div class="code-works">
-		<div class="head">
-			<h1 class="logo">Todo List</h1>
-			<div class="tabs"></div>
-			<button class="toggle-side">toogle side</button>
-		</div>
-
-		<form class="js-toDoForm">
-			<div class="fields">
-				<div class="date-title">
-					<input type="date" id="Ydate" value="" autocomplete="off" />
-					<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
-					<input type="number" id="Ymonth" step="0.0625" placeholder="M/M" autocomplete="off" />
-				</div>
-				<div class="url">
-					<input type="text" id="Yurl" placeholder="notion URL" />
-					<input type="text" id="Ycommit" placeholder="커밋 메시지" />
-				</div>
-				<div class="detail">
-					<textarea id="Ydeploy" rows="3" placeholder="업무내용" autocomplete="off"></textarea>
-				</div>
+	<div class="app">
+		<header class="topbar">
+			<div class="topbar-brand">
+				<span class="topbar-logo"></span>
+				<span class="topbar-title">PYBC Ops</span>
 			</div>
-			<div class="submit">
-				<button id="Ysubmit" type="button">Add</button>
+			<div class="topbar-sep"></div>
+			<div class="theme-switch">
+				<span class="theme-switch-label">Theme</span>
+				<select id="theme-select"></select>
 			</div>
-		</form>
-
-		<div class="work-summary">
-			총 개수 : <span id="count"></span>
-		</div>
-		<div class="content">
-			<div class="work-list">
-				<ul class="ul" id="todo-list">
-					<!-- {} -->
-				</ul>
+			<button id="upload-button" class="btn-upload upload-button">
+				<span>Upload JSON</span>
+				<span id="last-upload-info"></span>
+			</button>
+			<div class="topbar-right">
+				<input type="text" id="topbar-search" class="topbar-search" placeholder="업무 검색…" autocomplete="off">
+				<span class="topbar-status" id="topbar-status"></span>
+				<div class="topbar-avatar" id="topbar-avatar"></div>
 			</div>
-		</div>
-	</div>
+		</header>
 
-	<div class="side" id="side">
-		<div class="theme-switch">
-			<label for="theme-select">Theme</label>
-			<select id="theme-select"></select>
+		<div class="app-body">
+			<nav class="rail" id="rail">
+				<button type="button" class="rail-item" data-view="task">
+					<span class="rail-icon icon-task"><i></i><i></i><i></i></span>
+					<span class="rail-label">Task</span>
+				</button>
+				<button type="button" class="rail-item" data-view="team">
+					<span class="rail-icon icon-team"><i></i><i></i></span>
+					<span class="rail-label">Team</span>
+				</button>
+				<button type="button" class="rail-item" data-view="sync">
+					<span class="rail-icon icon-sync"></span>
+					<span class="rail-label">Sync</span>
+				</button>
+				<button type="button" class="rail-item" data-view="reports">
+					<span class="rail-icon icon-reports"><i></i><i></i><i></i></span>
+					<span class="rail-label">Reports</span>
+				</button>
+				<div class="rail-spacer"></div>
+				<button type="button" class="rail-item" data-view="settings">
+					<span class="rail-icon icon-settings"><i></i></span>
+					<span class="rail-label">설정</span>
+				</button>
+			</nav>
+
+			<main class="views">
+
+				<!-- ===================== TASK ===================== -->
+				<section class="view" id="view-task" data-view-panel="task">
+					<div class="tabs"></div>
+
+					<form class="js-toDoForm">
+						<div class="fields">
+							<div class="field">
+								<label>날짜</label>
+								<input type="date" id="Ydate" value="" autocomplete="off" />
+							</div>
+							<div class="field field-title">
+								<label>업무 내용</label>
+								<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
+							</div>
+							<div class="field field-mm">
+								<label>M/M</label>
+								<input type="number" id="Ymonth" step="0.0625" placeholder="0.0" autocomplete="off" />
+							</div>
+							<div class="field field-url">
+								<label>Notion URL</label>
+								<input type="text" id="Yurl" placeholder="notion.so/…" />
+							</div>
+							<div class="field field-hidden">
+								<input type="text" id="Ycommit" placeholder="커밋 메시지" />
+								<textarea id="Ydeploy" rows="3" placeholder="업무내용 상세"></textarea>
+							</div>
+						</div>
+						<div class="submit">
+							<button id="Ysubmit" type="button">저장</button>
+						</div>
+					</form>
+
+					<div class="task-body">
+						<div class="task-list-card">
+							<div class="task-list-head">
+								<div class="task-list-title">업무 리스트</div>
+								<div class="task-list-filters">
+									<span class="chip chip-active">전체</span>
+									<span class="chip">진행중</span>
+									<span class="chip">완료</span>
+								</div>
+								<div class="work-summary">총 개수 : <span id="count"></span></div>
+							</div>
+							<div class="grid-head">
+								<div></div><div>날짜</div><div>업무 내용</div><div>M/M</div><div>기능</div>
+							</div>
+							<div class="work-list">
+								<ul class="ul" id="todo-list">
+									<!-- {} -->
+								</ul>
+							</div>
+						</div>
+						<aside class="task-side">
+							<div class="card" id="team-status-card">
+								<div class="card-title">팀 현황</div>
+								<div class="card-body" id="team-status-body"></div>
+							</div>
+							<div class="card" id="keywords"></div>
+							<div class="card" id="mmCont"></div>
+							<div class="card find-string">
+								<div class="card-title">Detail 검색</div>
+								<div class="find-string-row">
+									<input type="text" id="find_file_string" placeholder="Detail 에서 검색">
+									<button id="find_string">Find</button>
+								</div>
+							</div>
+						</aside>
+					</div>
+				</section>
+
+				<!-- ===================== TEAM ===================== -->
+				<section class="view" id="view-team" data-view-panel="team" hidden>
+					<div class="view-header">
+						<div class="view-title">팀</div>
+						<div class="view-desc" id="team-department-desc">소속 팀원과 업무 현황입니다.</div>
+					</div>
+					<div class="team-summary" id="team-summary"></div>
+					<div class="team-grid" id="team-grid"></div>
+				</section>
+
+				<!-- ===================== NOTION SYNC ===================== -->
+				<section class="view" id="view-sync" data-view-panel="sync" hidden>
+					<div class="view-header">
+						<div class="view-title">Notion 동기화</div>
+						<div class="view-desc">팀 업무를 Notion 데이터베이스와 동기화합니다.</div>
+					</div>
+					<div class="sync-wrap">
+						<div class="card sync-status" id="sync-status-card"></div>
+						<div class="card">
+							<div class="card-title">팀원별 업로드 현황</div>
+							<div class="card-body" id="sync-user-list"></div>
+						</div>
+						<div class="card">
+							<div class="card-title">연결 정보</div>
+							<div class="card-body" id="sync-connection-info"></div>
+						</div>
+					</div>
+				</section>
+
+				<!-- ===================== REPORTS ===================== -->
+				<section class="view" id="view-reports" data-view-panel="reports" hidden>
+					<div class="view-header">
+						<div class="view-title">리포트</div>
+						<div class="view-desc">업무 처리 현황과 공수 추이를 확인합니다.</div>
+					</div>
+					<div class="reports-wrap">
+						<div class="reports-main">
+							<div class="card reports-chart-card">
+								<div class="card-title">월간 처리 업무 수</div>
+								<div class="bar-chart" id="report-count-chart"></div>
+							</div>
+							<div class="card">
+								<div class="card-title">월별 M/M 추이</div>
+								<div class="hbar-list" id="report-mm-trend"></div>
+							</div>
+						</div>
+						<div class="reports-side">
+							<div class="card">
+								<div class="card-title">키워드 분포</div>
+								<div class="card-body chip-cloud" id="report-keywords"></div>
+							</div>
+							<div class="card reports-member-card">
+								<div class="card-title">팀원별 M/M · 이번 달</div>
+								<div class="hbar-list" id="report-member-mm"></div>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<!-- ===================== SETTINGS ===================== -->
+				<section class="view" id="view-settings" data-view-panel="settings" hidden>
+					<div class="settings-wrap">
+						<div class="view-header">
+							<div class="view-title">설정</div>
+							<div class="view-desc">표시 옵션, 테마, 데이터 관리를 설정합니다.</div>
+						</div>
+						<div class="card">
+							<div class="card-title">표시 행수</div>
+							<div class="card-desc">업무 리스트에 표시할 최대 행 수입니다.</div>
+							<div class="segmented" id="limit-segmented">
+								<button type="button" data-limit="100">100</button>
+								<button type="button" data-limit="250">250</button>
+								<button type="button" data-limit="500">500</button>
+								<button type="button" data-limit="all">전체</button>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-title">Theme</div>
+							<div class="theme-grid" id="theme-grid"></div>
+						</div>
+						<div class="card">
+							<div class="card-title">데이터 관리</div>
+							<div class="data-actions">
+								<button id="load-button" class="btn-file" type="button">JSON 불러오기</button>
+								<button id="save-button" class="btn-file" type="button">JSON 다운로드</button>
+								<button id="copy-button" class="btn-file" type="button">클립보드 복사</button>
+							</div>
+							<input type="file" id="file-input" accept=".json">
+						</div>
+					</div>
+				</section>
+
+			</main>
 		</div>
-		<div class="how">
-			<button id="save-button" class="btn-file">Save as JSON file</button>
-			<button id="load-button" class="btn-file">Load JSON file</button> <input type="file" id="file-input" accept=".json">
-			<button id="copy-button" class="btn-file">Copy JSON file</button>
-			<button id="upload-button" class="btn-file upload-button">Upload JSON <span id="last-upload-info"></span></button>
-		</div>
-		<div class="find-string">
-			<input type="text" id="find_file_string" placeholder="Detail 에서 검색"> <button id="find_string">Find</button>
-		</div>
-		<button class="toggle-side">toogle side</button>
 	</div>
 
 	<script src="./assets/script.js"></script>

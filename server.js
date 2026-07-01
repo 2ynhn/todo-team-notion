@@ -40,12 +40,12 @@ app.get('/todos/:userId', async (req, res) => {
   const userId = req.params.userId;
   console.log(userId);
 
-  const database = await notion.databases.retrieve({
-    database_id: databaseId,
-  });
-
-  const dataSourceId = database.data_sources[0].id;
   try {
+    const database = await notion.databases.retrieve({
+      database_id: databaseId,
+    });
+
+    const dataSourceId = database.data_sources[0].id;
     const query = await notion.dataSources.query({
       data_source_id: dataSourceId,
       filter: {
@@ -210,6 +210,28 @@ app.post('/config/theme', (req, res) => {
 	} catch (e) {
 		console.error('Error updating theme:', e);
 		res.status(500).json({ error: 'failed to update theme', details: e.message });
+	}
+});
+
+// config.json 의 limit 값 변경 (설정 화면의 "표시 행수")
+app.post('/config/limit', (req, res) => {
+	const raw = req.body.limit;
+	const limit = raw === 'all' ? 'all' : parseInt(raw, 10);
+	const isValid = limit === 'all' || (Number.isInteger(limit) && limit > 0);
+	if (!isValid) {
+		return res.status(400).json({ error: 'invalid limit', limit: raw });
+	}
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.limit = limit === 'all' ? 0 : limit;
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.limit = cfg.limit;
+		res.json({ message: 'limit updated', limit: cfg.limit });
+	} catch (e) {
+		console.error('Error updating limit:', e);
+		res.status(500).json({ error: 'failed to update limit', details: e.message });
 	}
 });
 
