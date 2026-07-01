@@ -2,10 +2,10 @@
 	console.log('init month.js');
 	createCheckExist_style(); // style 추가 & 중복 로드 방지
 	createCheckExist_mmCont(); // mmCont 추가 & 중복 로드 방지
-	mMonthInit(AppState.todos);
+	mMonthInit(todos);
 
 	// master, user 별 함수
-	if (AppState.masterId == AppState.activeUser) {
+	if (masterId == activeUser) {
 	} else {
 	}
 })();

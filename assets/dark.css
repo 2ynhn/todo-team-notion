@@ -1,34 +1,40 @@
+/* =====================================================================
+   Theme: Dark (default)  —  config.theme: "dark.css"
+   Modern dark surface system. Overrides base tokens + dark-only bits.
+   ===================================================================== */
+
 :root{
-    --background: #292a2d;
-    --background-2: #1a1b1d;
-    --color: #f8faff;
-    --color-2: #adb0b8;
-    --point-1 : #4f647b;
-    --point-2 : #1e6fc5;
-    --line: rgba(255,255,255,.1);
-    --line-2: rgba(255,255,255,.25);
-    --dimm: rgba(109, 116, 151, 0.2);
-    --button-radius: 8px;
-    --hover:rgba(255,255,255,.05);
+    --background:    #1c1d20;
+    --background-2:  #16171a;
+    --background-3:  #26282c;
+    --color:         #f1f3f7;
+    --color-2:       #9aa0ac;
+    --point-1:       #7f8aa3;
+    --point-2:       #5b8def;   /* brighter blue reads better on dark */
+    --point-3:       #2f3b57;
+    --line:          rgba(255,255,255,.09);
+    --line-2:        rgba(255,255,255,.18);
+    --hover:         rgba(255,255,255,.05);
+    --dimm:          rgba(0,0,0,.55);
+
+    --shadow-sm:     0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:     0 8px 22px rgba(0,0,0,.5);
+    --shadow-lg:     0 20px 52px rgba(0,0,0,.6);
+    --ring:          0 0 0 3px rgba(91,141,239,.35);
+
+	color-scheme: dark;
 }
+
 .head .logo {background-color:var(--color-2);}
-.js-toDoForm {background-color: var(--background-2);}
-.js-toDoForm input:focus, .js-toDoForm textarea:focus {background-color:var(--color);} 
-#Ysubmit {background-color: var(--color); color: var(--background-2);}
-.li .deploy {display: none; vertical-align:top; background-color:#333; color:#ccc;}
-.li button {border:0; border-radius:var(--button-radius);}
-.li.current {background-color:#444;}
 
-.li .project {color:#fff;} 
-li .deploy-edit {border:0; border-radius:4px;} 
-.li .edit-button {mask:url(./images/edit-dark.png); mask-size:100%; }
-.li .delete-button {mask:url(./images/trash.svg); mask-size:100%; }
-.li .cancel-button {mask: url(./images/cancel-dark.png); mask-size:100%;}
-.li .end-button {mask: url(./images/check-end.png); mask-size:70%; mask-repeat: no-repeat; mask-position: center;}
-.li .deploy-file {mask: url(./images/detail-dark.png); mask-size:100%;}
+/* dark icon glyphs (lighter alpha masks) */
+.li .edit-button {mask:url(./images/edit-dark.png); mask-size:100%;}
+.li .delete-button {mask:url(./images/trash.svg); mask-size:100%;}
+.li .cancel-button {mask:url(./images/cancel-dark.png); mask-size:100%;}
+.li .deploy-file {mask:url(./images/detail-dark.png); mask-size:100%;}
 
-.deploy pre {border-radius:6px; border:1px solid #454545; background-color:#2a2a2a;}
+.layer {background-color:var(--dimm);}
 
-.layer {background-color: var(--dimm);} 
-.layer .cont {background-color: var(--background-2);}
-.layer .cont textarea  {color: var(--color-2);}
+#Ydate {color: var(--background-2);}
+.js-toDoForm input, .js-toDoForm textarea {background-color: var(--color); color: var(--background);}
+#todo-list .li.edit input, #todo-list .li.edit textarea {background-color: var(--color); color: var(--background-2);}

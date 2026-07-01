@@ -7,7 +7,7 @@
 	markWeekStart();
 
 	// master, user 별 함수
-	if (AppState.masterId == AppState.activeUser) {
+	if (masterId == activeUser) {
 		uptodate();
 	} else {
 	}
@@ -28,13 +28,13 @@ function uptodate() {
 			const nextday = new Date(today);
 			nextday.setUTCDate(nextday.getUTCDate() + 1);
 			const next = nextday.toISOString().substr(0, 10);
-			AppState.todos.map(function (a) {
+			todos.map(function (a) {
 				if (a.id == thisID) {
 					a.date = next;
 				}
 			});
 			saveTodos();
-			renderTodos(AppState.todos);
+			renderTodos(todos);
 		});
 	});
 }
@@ -156,7 +156,7 @@ function deployView(obj) {
 	var thisID = li.getAttribute('id');
 
 	var cont, commit;
-	AppState.tabTodos.map(function (a) {
+	tabTodos.map(function (a) {
 		if (a.id == thisID) {
 			cont = a.detail;
 			commit = a.commit;
@@ -175,14 +175,14 @@ function displayCurrent(id) {
 }
 
 function toLayer(cont, cmmt) {
-	// console.log(cont, cmmt);
+	console.log(cont, cmmt);
 	const content = cont ? cont.replace(/\n/g, '<br>') : '';
 	const commit = cmmt ? cmmt : '';
 	const button = cmmt ? '<button onclick="this.previousElementSibling.click(); viewCommitLog();">키워드 복사 + bash 창 열기</button>' : '';
 	const layer = `
 		<div class="layer">
 			<div class="cont">
-				<div class="commit">커밋 키워드: <span onclick="copyString(this)">${commit}</span></div>
+				<div class="commit">커밋 키워드: <span onclick="copyString(this)">${commit}</span> ${button}</div>
 				<div class="str">${content}</div>
 			</div>
 		</div>

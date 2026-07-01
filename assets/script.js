@@ -1,85 +1,121 @@
-// Application State Management
-const AppState = {
-	todos: [],
-	tabTodos: [],
-	tempLi: '',
-	tempTodo: {},
-	limit: Infinity,
-	config: null,
-	users: [],
-	masterId: null,
-	activeUser: null,
-	fileID: null,
-	uploadLastDay: null
-};
+const todoTitle = document.getElementById('Ytitle');
+const todoDetail = document.getElementById('Ydeploy');
+const todoDate = document.getElementById('Ydate');
+const todoUrl = document.getElementById('Yurl');
+const todoCommit = document.getElementById('Ycommit');
+const todoMonth = document.getElementById('Ymonth');
+const addButton = document.getElementById('Ysubmit');
+const todoList = document.getElementById('todo-list');
+const loadButton = document.getElementById('load-button');
+const fileInput = document.getElementById('file-input');
+const saveButton = document.getElementById('save-button');
+const themeSelect = document.getElementById('theme-select');
+let todos = [];
+let tabTodos = [];
+let tempLi = '';
+let tempTodo = {};
+let limit = Infinity;
 
-// DOM Elements
-const DOM = {
-	todoTitle: document.getElementById('Ytitle'),
-	todoDetail: document.getElementById('Ydeploy'),
-	todoDate: document.getElementById('Ydate'),
-	todoUrl: document.getElementById('Yurl'),
-	todoCommit: document.getElementById('Ycommit'),
-	todoMonth: document.getElementById('Ymonth'),
-	addButton: document.getElementById('Ysubmit'),
-	todoList: document.getElementById('todo-list'),
-	loadButton: document.getElementById('load-button'),
-	fileInput: document.getElementById('file-input'),
-	saveButton: document.getElementById('save-button'),
-	findDetail: document.getElementById('find_string'),
-	copyButton: document.getElementById('copy-button')
-};
+// users by config.json
+let config, users, masterId, activeUser, fileID, uploadLastDay;
 
-// Initialize application
 (async function () {
-	try {
-		const response = await fetch('/masterUserId');
-		const data = await response.json();
-		if (data.masterId) {
-			AppState.masterId = data.masterId;
-			console.log('Master ID:', AppState.masterId);
-		} else {
-			renderTodos(AppState.todos);
-		}
-	} catch (error) {
-		console.error('Error fetching master user ID:', error);
-		renderTodos(AppState.todos);
-	}
-
-	try {
-		const response = await fetch('./config.json');
-		const config = await response.json();
-		AppState.config = config;
-		
-		if (config && config.users && Array.isArray(config.users)) {
-			AppState.users = config.users;
-			
-			if (config.limit && config.limit > 1) {
-				AppState.limit = config.limit;
+	await fetch('/masterUserId')
+		.then((response) => response.json())
+		.then((data) => {
+			if (data.masterId) {
+				masterId = data.masterId;
+				console.log('Master ID:', masterId);
+			} else {
+				renderTodos(todos);
 			}
-			usersInit(AppState.users);
+		});
 
-			if (config.theme) {
-				const link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.href = `./assets/${config.theme}`;
-				document.head.appendChild(link);
-			}
+	await fetch('./config.json')
+		.then((response) => response.json())
+		.then((config) => {
+			if (config && config.users && Array.isArray(config.users)) {
+				// users를 사용하여 탭 생성 및 이벤트 처리
+				users = config.users;
+				if (config.limit && config.limit > 1) {
+					limit = config.limit;
+				}
+				usersInit(users);
 
-			if(config.uploadLastDay) {
-				AppState.uploadLastDay = config.uploadLastDay;
+				// theme css를 적용
+				if (config.theme) {
+					const link = document.createElement('link');
+					link.rel = 'stylesheet';
+					link.href = `./assets/${config.theme}`; // 테마에 맞는 CSS 파일 로드
+					document.head.appendChild(link);
+				}
+
+				// 업로드 할 기간 설정
+				if(config.uploadLastDay) {
+					uploadLastDay = config.uploadLastDay;
+				}
 			}
-		}
-	} catch (error) {
-		console.error('Error loading config:', error);
-	}
+		});
+
+	themeSwitchInit();
 })();
+
+// 테마 선택 드롭다운 초기화
+async function themeSwitchInit() {
+	const select = themeSelect;
+	if (!select) return;
+
+	try {
+		const res = await fetch('/themes');
+		const data = await res.json();
+		const current = (config && config.theme) || data.current || '';
+
+		select.innerHTML = '';
+
+		// 항상 로드되는 base (선택 불가)
+		const baseOpt = document.createElement('option');
+		baseOpt.value = data.base || 'style.css';
+		baseOpt.textContent = `${data.base || 'style.css'} (base · always on)`;
+		baseOpt.disabled = true;
+		select.appendChild(baseOpt);
+
+		(data.themes || []).forEach((file) => {
+			const opt = document.createElement('option');
+			opt.value = file;
+			opt.textContent = file;
+			if (file === current) opt.selected = true;
+			select.appendChild(opt);
+		});
+
+		// theme 가 비었거나 목록에 없으면 base 가 선택된 것처럼 표시
+		if (!current || !(data.themes || []).includes(current)) {
+			baseOpt.selected = true;
+		}
+
+		select.addEventListener('change', async () => {
+			const theme = select.value;
+			try {
+				const r = await fetch('/config/theme', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ theme }),
+				});
+				if (!r.ok) throw new Error(`status ${r.status}`);
+				location.reload();
+			} catch (e) {
+				console.error('theme update failed:', e);
+				alert('테마 변경에 실패했습니다.');
+			}
+		});
+	} catch (e) {
+		console.error('theme list load failed:', e);
+	}
+}
 
 async function usersInit(users) {
 	const tabs = document.querySelector('.tabs');
 	const form = document.querySelector('.js-toDoForm');
 	const how = document.querySelector('.how');
-	
 	users.forEach((user) => {
 		if (user.active) {
 			const tab = document.createElement('button');
@@ -87,12 +123,11 @@ async function usersInit(users) {
 			tab.dataset.userId = user.id;
 			tab.textContent = user.name;
 			tabs.appendChild(tab);
-			
 			tab.addEventListener('click', () => {
 				loadingInit();
 				const userId = tab.dataset.userId;
 				loadTodoData(userId);
-				if (user.id == AppState.masterId) {
+				if (user.id == masterId) {
 					form.classList.remove('avoid');
 					how.classList.remove('avoid');
 				} else {
@@ -100,8 +135,7 @@ async function usersInit(users) {
 					how.classList.add('avoid');
 				}
 			});
-			
-			if (user.id == AppState.masterId) {
+			if (user.id == masterId) {
 				tab.classList.add('active');
 				tab.click();
 			}
@@ -120,32 +154,30 @@ async function currentTabInit(userId) {
 }
 
 async function loadTodoData(userId) {
-	try {
-		if (userId === AppState.masterId) {
-			const response = await fetch(`./data/${userId}.json`);
-			let todoData = await response.json();
-			todoData.sort((a, b) => new Date(b.date) - new Date(a.date));
-			AppState.activeUser = userId;
+	if (userId === masterId) {
+		const response = await fetch(`./data/${userId}.json`);
+		let todoData = await response.json();
+		todoData.sort((a, b) => new Date(b.date) - new Date(a.date)); //sort by date
+		activeUser = userId; // activeUser = userId;
 
-			countingTodo(todoData);
-			renderTodos(todoData.slice(0, AppState.limit));
-			AppState.tabTodos = todoData;
-			currentTabInit(userId);
-			AppState.todos = todoData;
-			loadingRemove();
-		} else {
-			const fileContent = await fetchNotionFiles(userId);
-			console.log(fileContent.todos);
-			AppState.todos = fileContent.todos;
-			AppState.activeUser = userId;
-			countingTodo(AppState.todos);
-			renderTodos(AppState.todos.slice(0, AppState.limit));
-			AppState.tabTodos = AppState.todos;
-			currentTabInit(userId);
-			loadingRemove();
-		}
-	} catch (error) {
-		console.error('Error loading todo data:', error);
+		countingTodo(todoData)
+		renderTodos(todoData.slice(0, limit));
+		tabTodos = todoData;
+		currentTabInit(userId);
+		todos = todoData;
+		loadingRemove();
+		console.log(userId);
+		// --------------- localStorage.setItem('todos', JSON.stringify(todoData));
+	} else {
+		const fileContent = await fetchNotionFiles(userId);
+		console.log(fileContent.todos)
+		// todos = JSON.parse(fileContent.todos);
+		todos = fileContent.todos;
+		activeUser = userId;
+		countingTodo(todos);
+		renderTodos(todos.slice(0, limit));
+		tabTodos = todos;
+		currentTabInit(userId);
 		loadingRemove();
 	}
 }
@@ -153,7 +185,7 @@ async function loadTodoData(userId) {
 function countingTodo(src) {
 	let countTodo = src.length;
 	let summaryCount = document.getElementById('count');
-	summaryCount.innerHTML = `${countTodo}`;
+	summaryCount.innerHTML = `${countTodo}`
 }
 
 function getDateFromCreated(stamp){
@@ -179,152 +211,152 @@ async function renderLimitTodos() {
 		const config = await response.json();
 		const limit = config.limit || 100;
 	} catch (error) {
-		console.error('config.json load error');
-	}
-}
-
-// Helper: Create button HTML strings
-function createDetailButton(hasDetail) {
-	return hasDetail 
-		? '<button onclick="deployView(this);" class="deploy-file">Detail</button>' 
-		: '';
-}
-
-function createUrlLink(url) {
-	return url && url !== 'undefined' 
-		? `<a href="${url}" class="url" title="${url}" target="_blank">URL</a>` 
-		: '';
-}
-
-function createEndButton(ended, todoId) {
-	return !ended 
-		? `<button class="end-button" data-id="${todoId}">Finish</button>` 
-		: '';
-}
-
-// Create common todo HTML structure
-function createTodoHTML(todo, isMaster) {
-	const detailButton = createDetailButton(todo.detail);
-	const urlLink = createUrlLink(todo.url);
-	const endButton = isMaster ? createEndButton(todo.ended, todo.id) : '';
-	
-	const baseHTML = `
-		<p class="date-title">
-			<span class="date">${todo.date}</span>
-			<span class="title">${todo.title}</span>
-			<span class="month">${todo?.month ?? ''}</span>
-			${detailButton}
-			${urlLink}
-		</p>
-	`;
-
-	if (isMaster) {
-		return baseHTML + `
-			<p class="functions">
-				${endButton}
-				<button class="edit-button" data-id="${todo.id}">Edit</button>
-				<button class="delete-button" data-id="${todo.id}">Delete</button>
-			</p>
-			<div class="deploy"><pre>${todo?.detail ?? ''}</pre></div>
-		`;
-	} else {
-		return baseHTML + `
-			<p class="functions"></p>
-			<div class="deploy"><pre>${todo?.detail ?? ''}</pre></div>
-		`;
+		console.error('config.json 로드 에러');
 	}
 }
 
 function renderTodos(todos) {
-	DOM.todoList.innerHTML = '';
+	todoList.innerHTML = '';
 	if (todos.length === 0) {
-		DOM.todoList.innerHTML = '<p>No todo found.</p>';
-		return;
+		todoList.innerHTML = '<p>No todo found.</p>';
 	}
-	
-	todos.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-	const isMaster = AppState.masterId === AppState.activeUser;
+	todos.sort((a, b) => new Date(b.date) - new Date(a.date)); //sort by date
 
 	todos.forEach((todo, index) => {
 		const li = document.createElement('li');
-		li.dataset.index = index;
+		let urlStr = ``;
+		let endStr = ``;
+		li.dataset.index = index; // 데이터셋에 index 저장 (수정 시 활용)
 		li.classList.add('li');
 		li.setAttribute('id', todo.id);
-		
-		// Normalize todo properties
-		if (todo.notion) {
+		if (todo.deploy && typeof todo.deploy !== 'undefined') {
+			todo.detail = todo.deploy;
+			delete todo.deploy;
+		} else if (todo.detail && typeof todo.detail !== 'undefined') {
+			todo.detail = todo.detail;
+		} else {
+			// todo.detail = '';
+		}
+		if (todo.notion && typeof todo.notion !== 'undefined') {
 			todo.url = todo.notion;
+		} else if (todo.url && typeof todo.url !== 'undefined') {
+			todo.url = todo.url;
+		} else {
+			// todo.url = '';
 		}
-		
-		// Add ended class if needed
-		if (todo.ended) {
-			li.classList.add('ended');
+		if (todo.month && typeof todo.month !== 'undefined') {
+			todo.month = todo.month;
+		} else {
+			// todo.month = '';
 		}
 
-		// Create and insert HTML
-		li.innerHTML = createTodoHTML(todo, isMaster);
+		// deploy 파일 여부 확인
+		var deployFiles;
+		if (todo.detail || todo.commit) {
+			deployFiles = '<button onclick="deployView(this);" class="deploy-file">Detail</button>';
+		} else {
+			deployFiles = '';
+		}
 
-		// Add edit event listener for master user only
-		if (isMaster) {
+		if (masterId === activeUser) {
+			// master 유저 인 경우
+			if (todo.url !== 'undefined' && todo.url) {
+				urlStr = `<a href="${todo.url}" class="url" title="${todo?.url ?? ''}" target="_blank">URL</a>`;
+			}
+			if (todo.ended !== true) {
+				endStr = `<button class="end-button" data-id="${todo.id}">Finish</button>`;
+			} else {
+				li.classList.add('ended');
+			}
+			li.innerHTML = `
+                <p class="date-title">
+                    <span class="date">${todo.date}</span>
+                    <span class="title">${todo.title}</span>
+                    <span class="month">${todo?.month ?? ''}</span>
+                    ${deployFiles}
+                    ${urlStr}
+                </p>
+                <p class="functions">
+                    ${endStr}
+                    <button class="edit-button" data-id="${todo.id}">Edit</button>
+                    <button class="delete-button" data-id="${todo.id}">Delete</button>
+                </p>
+                <div class="deploy"><pre>${todo?.month ?? ''}</pre></div>
+            `;
+
 			const editButton = li.querySelector('.edit-button');
 			editButton.addEventListener('click', () => {
 				bindEdit(todo);
 			});
+		} else {
+			// member 유저 인 경우 view만 제공공
+			if (todo.url !== 'undefined' && todo.url) {
+				urlStr = `<a href="${todo.url}" class="url" title="${todo.url}" target="_blank">URL</a>`;
+			}
+			if (todo.ended === true) {
+				li.classList.add('ended');
+			}
+			li.innerHTML = `
+                <p class="date-title">
+                    <span class="date">${todo.date}</span>
+                    <span class="title">${todo.title}</span>
+					<span class="month">${todo?.month ?? ''}</span>
+                    ${deployFiles}
+                    ${urlStr}
+                </p>
+                <p class="functions">
+                </p>
+                <div class="deploy"><pre>${todo.detail}</pre></div>
+            `;
 		}
 
-		DOM.todoList.appendChild(li);
+		todoList.appendChild(li);
 	});
 
 	document.getElementById('Ydate').valueAsDate = new Date();
 
-	// Load plugins
-	loadPlugins();
-}
-
-async function loadPlugins() {
-	try {
-		const response = await fetch('./config.json');
-		const config = await response.json();
-		
-		if (config && config.plugins && Array.isArray(config.plugins)) {
-			config.plugins.forEach((plugin) => {
-				const oldScript = document.querySelector(`script[src="./assets/${plugin}"]`);
-				if (oldScript) {
-					oldScript.remove();
-				}
-				const script = document.createElement('script');
-				script.src = `./assets/${plugin}`;
-				document.head.appendChild(script);
-			});
-		}
-	} catch (error) {
-		console.error('Error loading plugins:', error);
-	}
+	// plugins init
+	fetch('./config.json')
+		.then((response) => response.json())
+		.then((config) => {
+			if (config && config.plugins && Array.isArray(config.plugins)) {
+				const plugins = config.plugins;
+				plugins.forEach((plugin) => {
+					const oldScript = document.querySelector(`script[src="./assets/${plugin}"]`);
+					if (oldScript) {
+						oldScript.remove(); // 기존 script 삭제
+					}
+					const script = document.createElement('script');
+					script.src = `./assets/${plugin}`;
+					document.head.appendChild(script);
+				});
+			}
+		});
 }
 
 function bindEdit(obj) {
 	const li = document.getElementById(obj.id);
-	AppState.tempLi = li.innerHTML;
-	AppState.tempTodo = obj;
+	tempLi = li.innerHTML;
+	tempTodo = obj;
 	li.classList.add('edit');
 	li.innerHTML = `
-		<p class="date-title">
-			<input type="date" class="edit-date" value="${obj.date}">
-			<input type="text" class="edit-title" value="${obj.title}">
-			<input type="number" step="0.01" class="edit-month" value="${obj?.month ?? ''}" placeholder="퍼블리싱 M/M">
-			<input type="text" class="edit-url" value="${obj?.url ?? ''}" placeholder="노션 URL">
-			<input type="text" class="edit-commit" value="${obj?.commit ?? ''}" placeholder="커밋 코멘트">
-			<textarea class="edit-detail" rows="10">${obj?.detail ?? ''}</textarea>
-		</p>
-		<p class="functions">
-			<input type="checkbox" class="edit-ended" ${obj.ended ? 'checked' : ''}>
-			<button class="save-button" onclick="editSave('${obj.id}')">Save</button>
-			<button class="cancel-button" onclick="editCancel('${obj.id}')">Cancel</button>
-		</p>
-	`;
+			<p class="date-title">
+				<input type="date" class="edit-date" value="${obj.date}">
+				<input type="text" class="edit-title" value="${obj.title}">
+				<input type="number" step="0.0625" class="edit-month" value="${obj?.month ?? ''}" placeholder="퍼블리싱 M/M">
+				<input type="text" class="edit-url" value="${obj?.url ?? ''}" placeholder="노션 URL">
+				<input type="text" class="edit-commit" value="${obj?.commit ?? ''}" placeholder="커밋 키워드">
+				<textarea class="edit-detail" rows="10">${obj?.detail ?? ''}</textarea>
+			</p>
+			<p class="functions">
+				<input type="checkbox" class="edit-ended" ${obj.ended ? 'checked' : ''}>
+				<button class="save-button" onclick="editSave('${obj.id}')">Save</button>
+				<button class="cancel-button" onclick="editCancel('${obj.id}')">Cancel</button>
+			</p>
+		`;
 }
 
+// Save 버튼 클릭 이벤트
 function editSave(id) {
 	const li = document.getElementById(id);
 	const index = li.dataset.index;
@@ -347,11 +379,16 @@ function editSave(id) {
 		url: editUrl,
 		commit: editCommit,
 	};
-	AppState.todos[index] = removeEmptyKeys(newObj);
+	todos[index] = removeEmptyKeys(newObj);
 
-	const detailCont = createDetailButton(newObj.detail);
-	const urlStr = createUrlLink(newObj.url);
-	const endStr = createEndButton(newObj.ended, editID);
+	let detailCont;
+	newObj.detail ? (detailCont = '<button onclick="deployView(this);" class="deploy-file">Detail</button>') : (detailCont = '');
+
+	let urlStr;
+	newObj.url ? (urlStr = `<a href="${newObj.url}" class="url" title="${newObj.url}" target="_blank">URL</a>`) : (urlStr = '');
+
+	let endStr;
+	newObj.ended ? (endStr = '') : (endStr = `<button class="end-button" data-id="${editID}">Finish</button>`);
 
 	li.innerHTML = `
 		<p class="date-title">
@@ -368,42 +405,39 @@ function editSave(id) {
 		</p>
 		<div class="deploy"><pre>${newObj.detail}</pre></div>
 	`;
-	
 	li.classList.remove('edit');
-	
-	if (newObj.ended) {
-		li.classList.add('ended');
-	} else {
-		li.classList.remove('ended');
-	}
-	
 	const editButton = li.querySelector('.edit-button');
 	editButton.addEventListener('click', function () {
 		bindEdit(newObj);
 	});
 
-	saveTodos();
+	saveTodos(); // 서버에 저장
 	if (typeof mMonthInit !== 'undefined') {
-		mMonthInit(AppState.todos);
+		mMonthInit(todos);
 	}
-	renderTodos(AppState.todos);
+	if (newObj.ended !== true) {
+		li.classList.remove('ended');
+	} else {
+		li.classList.add('ended');
+	}
+	renderTodos(todos); // 화면 다시 렌더링
 }
 
 function editCancel(id) {
 	const li = document.getElementById(id);
 	li.classList.remove('edit');
-	li.innerHTML = AppState.tempLi;
+	li.innerHTML = tempLi;
 
 	const editButton = li.querySelector('.edit-button');
 	editButton.addEventListener('click', function () {
-		bindEdit(AppState.tempTodo);
+		bindEdit(tempTodo);
 	});
 }
 
 function saveTodos() {
-	DOM.saveButton.click();
+	//------------------- localStorage.setItem('todos', JSON.stringify(todos));
+	saveButton.click();
 }
-
 function removeEmptyKeys(obj) {
 	for (let key in obj) {
 		if (obj.hasOwnProperty(key)) {
@@ -414,17 +448,16 @@ function removeEmptyKeys(obj) {
 	}
 	return obj;
 }
-
-DOM.addButton.addEventListener('click', () => {
+addButton.addEventListener('click', () => {
 	const newTodo = {
 		id: generateId(),
-		title: DOM.todoTitle.value,
-		detail: DOM.todoDetail.value,
-		date: DOM.todoDate.value,
-		url: DOM.todoUrl.value,
-		commit: DOM.todoCommit.value,
-		month: DOM.todoMonth.value,
-		ended: false,
+		title: todoTitle.value,
+		detail: todoDetail.value,
+		date: todoDate.value,
+		url: todoUrl.value,
+		commit: todoCommit.value,
+		month: todoMonth.value,
+		ended: false, // 완료 여부 (기본값: false)
 	};
 	if (!newTodo.title) {
 		alert('제목을 입력해 주세요');
@@ -434,35 +467,35 @@ DOM.addButton.addEventListener('click', () => {
 		alert('날짜가 없습니다. 리스트 맨 하단에 추가됩니다.');
 	}
 	const newTodoNEW = removeEmptyKeys(newTodo);
-	AppState.todos.unshift(newTodoNEW);
-	countingTodo(AppState.todos);
-	renderTodos(AppState.todos);
+	todos.unshift(newTodoNEW);
+	countingTodo(todos)
+	renderTodos(todos);
 	saveTodos();
-	DOM.todoTitle.value = '';
-	DOM.todoDetail.value = '';
-	DOM.todoUrl.value = '';
-	DOM.todoCommit.value = '';
-	DOM.todoMonth.value = '';
+	todoTitle.value = '';
+	todoDetail.value = '';
+	todoUrl.value = '';
+	todoCommit.value = '';
+	todoMonth.value = '';
 });
 
-DOM.todoList.addEventListener('click', (event) => {
+todoList.addEventListener('click', (event) => {
 	if (event.target.classList.contains('delete-button')) {
 		var result = confirm('Want to delete?');
 		if (result) {
 			const id = event.target.dataset.id;
-			AppState.todos = AppState.todos.filter((todo) => todo.id !== id);
+			todos = todos.filter((todo) => todo.id !== id);
 
 			const index = document.getElementById(id).dataset.index;
 			const liToRemove = document.querySelector(`li[data-index="${index}"]`);
 			if (liToRemove) {
 				liToRemove.remove();
 			}
-			updateIndexes();
+			updateIndexes(); // 삭제 후 남은 `li`들의 data-index 업데이트
 			saveTodos();
 			if (typeof mMonthInit !== 'undefined') {
-				mMonthInit(AppState.todos);
+				mMonthInit(todos);
 			}
-			countingTodo(AppState.todos);
+			countingTodo(todos)
 		}
 	}
 });
@@ -471,38 +504,40 @@ function updateIndexes() {
 	const listItems = document.querySelectorAll('.li');
 	listItems.forEach((li, newIndex) => {
 		li.setAttribute('data-index', newIndex);
-	});
+	}); // localStorage의 todos 배열도 인덱스 업데이트
+	//----------------- let todos = JSON.parse(localStorage.getItem('todos')) || [];
+	//------------------ localStorage.setItem('todos', JSON.stringify(todos));
 }
 
-DOM.todoList.addEventListener('click', (event) => {
+todoList.addEventListener('click', (event) => {
 	if (event.target.classList.contains('end-button')) {
 		var result = confirm('Want to Finish?');
 		if (result) {
 			const id = event.target.dataset.id;
-			const todo = AppState.todos.find((todo) => todo.id === id);
+			const todo = todos.find((todo) => todo.id === id);
 			if (todo) {
 				todo.ended = true;
 				console.log(`ID: ${id} 완료 처리됨`, todo);
 			}
 			saveTodos();
-			renderTodos(AppState.todos);
+			// updateIndexes();
+			renderTodos(todos);
 		}
 	}
 });
 
-DOM.loadButton.addEventListener('click', () => {
-	DOM.fileInput.click();
+loadButton.addEventListener('click', () => {
+	fileInput.click();
 });
-
-DOM.fileInput.addEventListener('change', (event) => {
+fileInput.addEventListener('change', (event) => {
 	const file = event.target.files[0];
 	const reader = new FileReader();
 	reader.onload = (e) => {
 		try {
 			const loadedTodos = JSON.parse(e.target.result);
-			AppState.todos = loadedTodos;
+			todos = loadedTodos;
 			saveTodos();
-			renderTodos(AppState.todos);
+			renderTodos(todos);
 		} catch (error) {
 			console.error('Error loading JSON file:', error);
 			alert('Invalid JSON file.');
@@ -510,26 +545,23 @@ DOM.fileInput.addEventListener('change', (event) => {
 	};
 	reader.readAsText(file);
 });
-
-DOM.saveButton.addEventListener('click', (e) => {
-	AppState.todos.sort((a, b) => new Date(b.date) - new Date(a.date));
+saveButton.addEventListener('click', (e) => {
+	todos.sort((a, b) => new Date(b.date) - new Date(a.date)); //sort by date
 	fetch('/save', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify({ todos: AppState.todos }),
+		body: JSON.stringify({ todos }),
 	})
 		.then((response) => response.json())
 		.then((data) => {
 			console.log('Todos saved:', data);
 			checkMotion(e);
-		})
-		.catch((error) => {
-			console.error('Error saving todos:', error);
 		});
 });
 
+// UI
 function checkMotion(event) {
 	const button = event.target;
 	let check = document.getElementById('save-check');
@@ -544,6 +576,7 @@ function checkMotion(event) {
 	}
 }
 
+// 버튼 내 로딩
 function fnLoadingInButton(obj) {
 	let target;
 	if (!obj) { return; }
@@ -556,7 +589,8 @@ function fnLoadingInButton(obj) {
 	target.insertAdjacentHTML('beforeend', html);
 }
 
-DOM.findDetail.addEventListener('click', function () {
+const findDetail = document.getElementById('find_string');
+findDetail.addEventListener('click', function () {
 	var query = document.getElementById('find_file_string').value;
 	findFiles(query);
 });
@@ -569,7 +603,6 @@ function loadingInit() {
 		document.body.appendChild(l);
 	}
 }
-
 function loadingRemove() {
 	const l = document.querySelector('.loading');
 	if (l !== null) {
@@ -580,7 +613,7 @@ function loadingRemove() {
 function findFiles(string) {
 	var find = string;
 	var result = [];
-	AppState.todos.forEach(function (item) {
+	todos.forEach(function (item) {
 		if (item.detail?.indexOf(find) > -1) {
 			result.push(item.id);
 		}
@@ -604,55 +637,59 @@ function findFiles(string) {
 }
 
 async function fetchNotionFiles(userId) {
-	try {
-		const res = await fetch(`/todos/${encodeURIComponent(userId)}`, {
-			method: 'GET',
-		});
+  try {
+    const res = await fetch(`/todos/${encodeURIComponent(userId)}`, {
+      method: 'GET',
+    });
 
-		if (!res.ok) {
-			alert(`로드 실패: ${res.status}`);
-			return null;
-		}
+    if (!res.ok) {
+      alert(`로드 실패: ${res.status}`);
+      return null;
+    }
 
-		const data = await res.json();
-		return data;
-	} catch (err) {
-		console.error(err);
-		alert('네트워크 오류 (GET)');
-		return null;
-	}
+    const data = await res.json();
+    // data 형태: { user: '20202222', todos: [ {...}, {...} ] }
+
+    return data;
+  } catch (err) {
+    console.error(err);
+    alert('네트워크 오류 (GET)');
+    return null;
+  }
 }
+
 
 async function updateNotionFile(userId, todos) {
-	try {
-		const res = await fetch(`/todos/${encodeURIComponent(userId)}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({ todos }),
-		});
+  try {
+    const res = await fetch(`/todos/${encodeURIComponent(userId)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ todos }),
+    });
 
-		if (!res.ok) {
-			alert(`저장 실패: ${res.status}`);
-			return false;
-		}
+    if (!res.ok) {
+      alert(`저장 실패: ${res.status}`);
+      return false;
+    }
 
-		const data = await res.json();
-		console.log('update result:', data);
-		return true;
-	} catch (err) {
-		console.error(err);
-		alert('네트워크 오류 (PUT)');
-		return false;
-	}
+    const data = await res.json();
+    console.log('update result:', data);
+    return true;
+  } catch (err) {
+    console.error(err);
+    alert('네트워크 오류 (PUT)');
+    return false;
+  }
 }
 
-DOM.copyButton.addEventListener('click', async (e) => {
+document.getElementById('copy-button').addEventListener('click', async (e) => {
 	try {
-		const fileName = `${AppState.activeUser}.json`;
-		const fileContent = JSON.stringify(AppState.todos, null, 2);
+		const fileName = `${activeUser}.json`; // 파일명
+		const fileContent = JSON.stringify(todos, null, 2); // 파일 내용
 
+		// 클립보드에 파일 내용 복사
 		await navigator.clipboard.writeText(fileContent);
 		checkMotion(e);
 	} catch (error) {
@@ -660,13 +697,15 @@ DOM.copyButton.addEventListener('click', async (e) => {
 	}
 });
 
+// document.getElementById('upload-button').addEventListener('click', async () => {
 document.documentElement.addEventListener('click', async (event) => {
 	if (event.target.classList.contains('upload-button')) {
+		// try {
 		fnLoadingInButton('.upload-button');
 
-		let uploadTodo = AppState.todos;
-		if(AppState.uploadLastDay > 0){
-			uploadTodo = getRecentTodos(AppState.todos, AppState.uploadLastDay);
+		let uploadTodo = todos;
+		if(uploadLastDay > 0){
+			uploadTodo = getRecentTodos(todos, uploadLastDay);
 		}
 
 		console.log('json 글자 수가 '+ JSON.stringify({ uploadTodo }).length + ' 입니다.');
@@ -676,23 +715,34 @@ document.documentElement.addEventListener('click', async (event) => {
 		if(JSON.stringify({ uploadTodo }).length > 20000) {
 			alert('json 글자 수가 '+ JSON.stringify({ uploadTodo }).length + ' 입니다. config에서 "uploadLastDay" 값을 변경해 주세요. 일단 오늘은 올려드리겠습니다.')
 		}
-		const ok = await updateNotionFile(AppState.masterId, uploadTodo);
+		const ok = await updateNotionFile(masterId, uploadTodo);
 		console.log(ok);
 		document.querySelector('.loading-in-button').remove();
 		checkMotion(event);
+		
+		// } catch (error) {
+		// 	document.getElementById('result').textContent = `오류: ${error.message}`;
+		// }
 	}
 });
 
 function getRecentTodos(todoJson, day) {
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // 시간 제거 (날짜만 비교)
 
-	const startDate = new Date(today);
-	startDate.setDate(startDate.getDate() - day);
+  // today 기준 day일 전 날짜 계산
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - day);
 
-	return todoJson.filter(todo => {
-		const todoDate = new Date(todo.date);
-		todoDate.setHours(0, 0, 0, 0);
-		return todoDate >= startDate;
-	});
+  // today 기준 30일 후 날짜 (상한)
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 30);
+
+  return todoJson.filter(todo => {
+    const todoDate = new Date(todo.date);
+    todoDate.setHours(0, 0, 0, 0); // 시간 제거
+
+    // startDate 이후의 모든 날짜를 포함 (과거 day일 + 오늘 + 미래)
+    return todoDate >= startDate && todoDate < endDate;;
+  });
 }

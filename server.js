@@ -1,4 +1,4 @@
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const express = require('express');
 const { Client } = require('@notionhq/client');
@@ -9,7 +9,7 @@ const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
 const app = express();
-const port = 4000;
+const port = 3000;
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 const users = config.users;
 const notionAPI = config.notionAPI;
@@ -34,22 +34,56 @@ app.get('/', (req, res) => {
 });
 
 
-// Notion rich_text 2000자 제한을 우회하는 함수
-function splitTextIntoChunks(text, maxLength = 1900) {
-  const chunks = [];
-  for (let i = 0; i < text.length; i += maxLength) {
-    chunks.push(text.substring(i, i + maxLength));
-  }
-  return chunks;
-}
 
-// rich_text 배열로 변환
-function createRichTextArray(text) {
-  const chunks = splitTextIntoChunks(text);
-  return chunks.map(chunk => ({
-    text: { content: chunk }
-  }));
-}
+// GET /todos/:userId  -> 해당 유저의 JSON 배열 반환
+app.get('/todos/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  console.log(userId);
+
+  const database = await notion.databases.retrieve({
+    database_id: databaseId,
+  });
+
+  const dataSourceId = database.data_sources[0].id;
+  try {
+    const query = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: {
+        property: 'user',
+        title: {
+          equals: userId
+        }
+        // rich_text: { equals: userId },  // user 열이 텍스트인 경우
+      },
+    });
+
+    if (query.results.length === 0) {
+      return res.status(404).json({ message: 'user row not found' });
+    }
+
+    const page = query.results[0];
+    const valueProp = page.properties.value;
+    
+
+    let rawText = '';
+
+    if (valueProp && Array.isArray(valueProp.rich_text)) {
+      rawText = valueProp.rich_text.map(rt => rt.plain_text || rt.text?.content || '').join('');
+    }
+    let todos = [];
+    try {
+      todos = rawText.length > 0 ? JSON.parse(rawText) : [];
+    } catch (e) {
+      console.warn('JSON parse error:', e);
+      todos = [];
+    }
+    res.json({ user: userId, todos });
+	// console.log(page, valueProp, rawText, todos, res);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'failed to load todos' });
+  }
+});
 
 // PUT /todos/:userId  body: { todos: [ {...}, {...} ] }
 app.put('/todos/:userId', async (req, res) => {
@@ -87,14 +121,21 @@ app.put('/todos/:userId', async (req, res) => {
 
     // 3) JSON 배열을 문자열로 변환
     const jsonString = JSON.stringify(todos);
-    
-    // 4) 2000자 제한 체크 및 분할
-    console.log(`JSON length: ${jsonString.length} characters`);
-    
-    const richTextArray = createRichTextArray(jsonString);
-    console.log(`Split into ${richTextArray.length} chunks`);
 
-    // 5) 페이지 업데이트
+	function splitTextIntoChunks(text, chunkSize = 2000) {
+		const chunks = [];
+		for (let i = 0; i < text.length; i += chunkSize) {
+			chunks.push(text.slice(i, i + chunkSize));
+		}
+		return chunks;
+	}
+	const chunks = splitTextIntoChunks(jsonString);
+	const richTextArray = chunks.map(chunk => ({
+		type: 'text',
+		text: { content: chunk }
+	}));
+
+    // 4) 페이지 업데이트
     await notion.pages.update({
       page_id: pageId,
       properties: {
@@ -104,62 +145,10 @@ app.put('/todos/:userId', async (req, res) => {
       },
     });
 
-    res.json({ 
-      message: 'updated', 
-      user: userId,
-      totalLength: jsonString.length,
-      chunks: richTextArray.length 
-    });
-  } catch (e) {
-    console.error('Error updating todos:', e);
-    res.status(500).json({ 
-      error: 'failed to update todos',
-      details: e.message 
-    });
-  }
-});
-
-// GET 함수 수정 (여러 chunk를 합쳐서 반환)
-app.get('/todos/:userId', async (req, res) => {
-  const userId = req.params.userId;
-  console.log('load user: ' + userId);
-
-  try {
-    const database = await notion.databases.retrieve({
-      database_id: databaseId,
-    });
-
-    const dataSourceId = database.data_sources[0].id;
-
-    const query = await notion.dataSources.query({
-      data_source_id: dataSourceId,
-      filter: {
-        property: 'user',
-        title: {
-          equals: userId
-        }
-      },
-    });
-
-    if (query.results.length === 0) {
-      return res.status(404).json({ message: 'user row not found' });
-    }
-
-    const page = query.results[0];
-    const valueProp = page.properties.value;
-
-    // 여러 chunk를 합쳐서 하나의 문자열로 만듦
-    const rawText = valueProp.rich_text && valueProp.rich_text.length > 0
-      ? valueProp.rich_text.map(chunk => chunk.plain_text).join('')
-      : '[]';
-
-    console.log(`Retrieved ${rawText.length} characters from ${valueProp.rich_text?.length || 0} chunks`);
-
-    const todos = JSON.parse(rawText);
-    res.json({ user: userId, todos });
+    res.json({ message: 'updated', user: userId });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'failed to load todos' });
+    res.status(500).json({ error: 'failed to update todos' });
   }
 });
 
@@ -175,9 +164,59 @@ app.get('/masterUserId', (req, res) => {
 	}
 });
 
+
+// 선택 가능한 테마 css 목록 (style.css 제외)
+app.get('/themes', (req, res) => {
+	const assetsDir = path.join(__dirname, 'assets');
+	fs.readdir(assetsDir, (err, files) => {
+		if (err) {
+			console.error('Error reading assets dir:', err);
+			return res.status(500).json({ error: 'cannot read assets directory' });
+		}
+		const themes = files
+			.filter((f) => f.endsWith('.css') && f !== 'style.css')
+			.sort();
+		res.json({ base: 'style.css', themes, current: config.theme || '' });
+	});
+});
+
+// config.json 의 theme 값 변경
+app.post('/config/theme', (req, res) => {
+	const theme = req.body.theme ?? '';
+	const assetsDir = path.join(__dirname, 'assets');
+
+	// 화이트리스트 검증: 실제 assets 폴더에 존재하는 css 만 허용 (경로 조작 방지)
+	let assetFiles = [];
+	try {
+		assetFiles = fs.readdirSync(assetsDir);
+	} catch (e) {
+		return res.status(500).json({ error: 'cannot read assets directory' });
+	}
+	const isValid =
+		theme === '' ||
+		(assetFiles.includes(theme) && theme.endsWith('.css') && theme !== 'style.css');
+	if (!isValid) {
+		return res.status(400).json({ error: 'invalid theme', theme });
+	}
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.theme = theme;
+		// config.json 의 기존 들여쓰기(4 spaces) 유지
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.theme = theme; // 메모리상 config 동기화
+		res.json({ message: 'theme updated', theme });
+	} catch (e) {
+		console.error('Error updating theme:', e);
+		res.status(500).json({ error: 'failed to update theme', details: e.message });
+	}
+});
+
 // 커밋 로그 실행 요청을 처리하는 API 엔드포인트
 app.get('/run-commit-log', (req, res) => {
 	// 실제 셸 스크립트가 있는 경로를 지정합니다.
+	// const scriptPath = `${__dirname}/extract_files.sh`;
 	const scriptPath = path.join(__dirname, 'extract_files.sh');
 
 	// Git Bash를 사용하여 스크립트를 실행합니다.
@@ -197,7 +236,7 @@ app.get('/run-commit-log', (req, res) => {
 
 
 app.post('/save', (req, res) => {
-	// console.log(req.body);
+	console.log(req.body);
 	const todos = req.body.todos;
 	const dataDir = './data';
 	// data 디렉토리가 없는 경우 생성

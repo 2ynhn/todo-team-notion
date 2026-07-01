@@ -1,60 +1,51 @@
 {
     "system_settings": {
-      "version": "1.0"
+        "version": "1.0"
     },
     "notionID": "",
     "notionAPI": "",
-    "theme" : "dark.css",
-    "limit" : 100,
-    "uploadLastDay" : 30,
-    "plugins" : [
-      "ui.js",
-      "month.js"
+    "theme": "dark.css",
+    "limit": 500,
+    "uploadLastDay": 0,
+    "uploadAlertTime": "17:04",
+    "plugins": [
+        "ui.js",
+        "month.js",
+        "reload-everyday.js",
+        "time-alert.js"
     ],
     "users": [
-      {
-        "id": "leepl",
-        "name": "이PL",
-        "role": "master",
-        "permissions": {
-          "system_control": true,
-          "user_management": true,
-          "content_modification": true
+        {
+            "id": "1111",
+            "name": "홍길동",
+            "role": "master",
+            "permissions": {
+                "system_control": true,
+                "user_management": true,
+                "content_modification": true
+            },
+            "department": "pybc",
+            "active": true
         },
-        "department" : "myteam",
-        "active": true
-      },
-      {
-        "id": "leesilver",
-        "name": "Lee silver",
-        "role": "member",
-        "permissions": {
-          "system_control": false,
-          "user_management": false,
-          "content_modification": false
-        },
-        "department" : "myteam",
-        "active": true
-      },
-      {
-        "id": "ss_speak",
-        "name": "손speak",
-        "role": "member",
-        "permissions": {
-          "system_control": false,
-          "user_management": false,
-          "content_modification": false
-        },
-        "department" : "myteam",
-        "active": true
-      }
+        {
+            "id": "2222",
+            "name": "둘리",
+            "role": "member",
+            "permissions": {
+                "system_control": false,
+                "user_management": false,
+                "content_modification": false
+            },
+            "department": "pybc",
+            "active": true
+        }
     ],
     "features": {
-      "enable_analytics": true,
-      "auto_update": false,
-      "backup_settings": {
-        "interval": "daily",
-        "retention_days": 7
-      }
+        "enable_analytics": true,
+        "auto_update": false,
+        "backup_settings": {
+            "interval": "daily",
+            "retention_days": 7
+        }
     }
-  }
+}

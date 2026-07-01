@@ -1,0 +1,49 @@
+/* =====================================================================
+   Theme: Notion (light)  —  config.theme: "notion.css"
+   Calm, paper-white surfaces, hairline borders, Notion blue accent.
+   Flat by design: shadows are kept very soft.
+   ===================================================================== */
+
+:root{
+    --background:    #ffffff;
+    --background-2:  #f7f7f5;   /* sidebar / form — Notion's warm gray */
+    --background-3:  #ffffff;
+    --color:         #37352f;   /* Notion ink */
+    --color-2:       #787774;   /* Notion muted gray */
+    --point-1:       #787774;
+    --point-2:       #2383e2;   /* Notion blue */
+    --point-3:       #d3e5ef;   /* Notion light-blue highlight */
+    --line:          rgba(55,53,47,.09);
+    --line-2:        rgba(55,53,47,.16);
+    --hover:         rgba(55,53,47,.06);
+
+    --button-radius: 6px;
+    --radius-sm:     4px;
+    --radius-lg:     8px;
+    --shadow-sm:     0 1px 2px rgba(15,15,15,.04);
+    --shadow-md:     0 4px 14px rgba(15,15,15,.10);
+    --shadow-lg:     rgba(15,15,15,.05) 0 0 0 1px, rgba(15,15,15,.1) 0 14px 40px;
+    --ring:          0 0 0 2px rgba(35,131,226,.4);
+
+    --font-sans: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont,
+                 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+
+}
+
+body {background-color:var(--background);}
+.head {border-bottom:1px solid var(--line);}
+.head .logo {background-color:var(--color);}
+
+#Ydate {color: var(--color);}
+
+/* flatter form & list to match Notion's block feel */
+.js-toDoForm {box-shadow:none; border:1px solid var(--line);}
+.work-summary {background:var(--color); color:var(--background);}
+.tabs .tab.active {background-color:var(--hover); color:var(--color);}
+
+.side {background-color:var(--background-2); border-left:1px solid var(--line);}
+.side .btn-file {border:1px solid var(--line); box-shadow:none; color:var(--color);}
+.side .btn-file.upload-button {color: #fff;}
+.side .btn-file:hover {background-color:var(--hover); transform:none; box-shadow:none;}
+
+#todo-list .li.edit input, #todo-list .li.edit textarea {color: var(--color); border:1px solid var(--line-2);}
