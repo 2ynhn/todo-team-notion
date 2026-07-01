@@ -313,27 +313,17 @@ function renderTodos(todos) {
 	});
 
 	document.getElementById('Ydate').valueAsDate = new Date();
-	if (typeof applyTaskFilters === 'function') {
-		applyTaskFilters();
-	}
+	applyTaskFilters();
 
-	// plugins init
-	fetch('./config.json')
-		.then((response) => response.json())
-		.then((config) => {
-			if (config && config.plugins && Array.isArray(config.plugins)) {
-				const plugins = config.plugins;
-				plugins.forEach((plugin) => {
-					const oldScript = document.querySelector(`script[src="./assets/${plugin}"]`);
-					if (oldScript) {
-						oldScript.remove(); // 기존 script 삭제
-					}
-					const script = document.createElement('script');
-					script.src = `./assets/${plugin}`;
-					document.head.appendChild(script);
-				});
-			}
-		});
+	// 예전엔 config.plugins로 ui.js/month.js를 매 렌더마다 <script> 태그로 다시
+	// 불러왔는데(재선언 오류·경쟁상태의 원인), 이제 항상 켜져 있는 내장 기능이라 바로 호출한다.
+	keywordInit();
+	dateColorize();
+	markWeekStart();
+	if (isMaster) {
+		uptodate();
+	}
+	mMonthInit(todos);
 }
 
 function bindEdit(obj) {
@@ -1224,6 +1214,321 @@ function renderThemeGridOptions(grid) {
 	`).join('');
 }
 
+/* =========================================================================
+   내장 기능 (구 plugins): 예전엔 config.json의 plugins 배열로 매 렌더마다
+   ui.js / month.js / time-alert.js를 <script> 태그로 다시 불러왔다.
+   (반복 로드 시 top-level let 재선언 오류가 나는 등 불안정해서) 이제는
+   항상 켜져 있는 내장 기능으로 병합한다. reload-everyday.js는 제거했다.
+   ========================================================================= */
+
+// ---- ui.js 병합: 키워드 태그 / 날짜 색상 / 주 구분선 / 상세보기 모달 / 다음날짜 이동 ----
+
+function uptodate() {
+	const li = document.querySelectorAll('#todo-list .li');
+	li.forEach((item) => {
+		const upBtn = `<div class="fn-update"><button title="다음 날짜로 이동"></button></div>`;
+		item.insertAdjacentHTML('beforeend', upBtn);
+		const btn = item.querySelector('.fn-update button');
+		btn.addEventListener('click', function () {
+			const thisID = item.getAttribute('id');
+			const today = item.querySelector('.date').innerHTML;
+			const nextday = new Date(today);
+			nextday.setUTCDate(nextday.getUTCDate() + 1);
+			const next = nextday.toISOString().substr(0, 10);
+			todos.map(function (a) {
+				if (a.id == thisID) {
+					a.date = next;
+				}
+			});
+			saveTodos();
+			renderTodos(todos);
+		});
+	});
+}
+
+function dateColorize() {
+	let dateArr = []; // [-3day, -2day, yesterday, today, tomorrow, +2day, +3day]
+	const dateCalc = 86400000;
+	let dateSets_i = -3;
+	while (dateSets_i < 4) {
+		var yyyy, dd, mm;
+		var dateTemp = new Date(new Date().getTime() + dateCalc * dateSets_i);
+		yyyy = dateTemp.getFullYear();
+		mm = dateTemp.getMonth() + 1;
+		dd = dateTemp.getDate();
+		mm < 10 ? (mm = '0' + mm) : (mm = mm);
+		dd < 10 ? (dd = '0' + dd) : (dd = dd);
+		dateArr.push(yyyy + '-' + mm + '-' + dd);
+		dateSets_i++;
+	}
+
+	document.querySelectorAll('#todo-list .li').forEach((that) => {
+		var date = that.querySelector('.date');
+		var k = 0;
+		while (k < dateArr.length) {
+			if (date.innerHTML === dateArr[k]) {
+				that.classList.add('day-in' + (k - 3));
+				break;
+			}
+			k++;
+		}
+	});
+}
+
+function keywordInit() {
+	const lists = document.querySelectorAll('#todo-list .li');
+	let keywords = [];
+	lists.forEach((that) => {
+		let title = that.querySelector('span.title');
+		if (title.innerHTML.indexOf('[') > -1 && title.innerHTML.indexOf(']') > -1) {
+			var keywordOrigin = title.innerHTML.match(/\[.*\]/gi);
+			keywordOrigin += '';
+			var keyword = keywordOrigin.split('[').join('');
+			keyword = keyword.split(']').join('');
+			if (keyword.indexOf(',') > -1) {
+				keyword = keyword.replace(/\s/g, '');
+				var keys = keyword.split(',');
+				keywords = keywords.concat(keys);
+				keywords = keywords.filter((item, pos) => keywords.indexOf(item) === pos);
+			} else if (keywords.indexOf(keyword) === -1) {
+				keywords.push(keyword);
+			}
+			for (var n = 0; n < keywords.length; n++) {
+				if (keywordOrigin.indexOf(keywords[n]) > -1) {
+					that.classList.add('key-' + n);
+				}
+			}
+		}
+	});
+
+	const keyWrap = document.getElementById('keywords');
+	if (keyWrap) {
+		keyWrap.innerHTML = '';
+	}
+	for (var j = 0; j < keywords.length; j++) {
+		const keys = document.getElementById('keywords');
+		const tag = '<a href="javascript:void(0)" class="keyword" key_value="key-' + j + '">' + keywords[j] + '</a>';
+		keys.insertAdjacentHTML('beforeend', tag);
+	}
+
+	document.querySelectorAll(`a[key_value*="key-"]`).forEach((i) => {
+		i.addEventListener('click', function () {
+			const keyclass = this.getAttribute('key_value');
+			const tagLi = document.querySelectorAll('.li.' + keyclass);
+			if (this.classList.contains('active')) {
+				this.classList.remove('active');
+				tagLi.forEach((item) => item.classList.remove('list-checked'));
+			} else {
+				this.classList.add('active');
+				tagLi.forEach((item) => item.classList.add('list-checked'));
+			}
+			return false;
+		});
+	});
+}
+
+function deployView(obj) {
+	const li = obj.parentNode.parentNode;
+	var thisID = li.getAttribute('id');
+
+	var cont, commit;
+	tabTodos.map(function (a) {
+		if (a.id == thisID) {
+			cont = a.detail;
+			commit = a.commit;
+		}
+	});
+	displayCurrent(thisID);
+	toLayer(cont, commit);
+}
+
+function displayCurrent(id) {
+	document.querySelectorAll('.li').forEach((li) => li.classList.remove('current'));
+	document.querySelector('#' + id).classList.add('current');
+}
+
+function toLayer(cont, cmmt) {
+	const content = cont ? cont.replace(/\n/g, '<br>') : '';
+	const commit = cmmt ? cmmt : '';
+	const button = cmmt ? '<button onclick="this.previousElementSibling.click(); viewCommitLog();">키워드 복사 + bash 창 열기</button>' : '';
+	const layer = `
+		<div class="layer">
+			<div class="cont">
+				<div class="commit">커밋 키워드: <span onclick="copyString(this)">${commit}</span> ${button}</div>
+				<div class="str">${content}</div>
+			</div>
+		</div>
+	`;
+	document.documentElement.insertAdjacentHTML('beforeend', layer);
+	document.querySelector('.layer .cont').addEventListener('click', function (e) {
+		e.preventDefault();
+	});
+}
+
+function layerRemove() {
+	const layer = document.querySelector('.layer');
+	layer.remove();
+	document.querySelectorAll('.li').forEach((li) => li.classList.remove('current'));
+}
+
+document.documentElement.addEventListener('click', function (e) {
+	const layer = document.querySelector('.layer');
+	if (!layer) return;
+	if (e.target.classList.contains('layer')) {
+		layerRemove();
+	}
+});
+
+function markWeekStart() {
+	const items = Array.from(document.querySelectorAll('#todo-list .li'));
+	const dateItems = items.map((item) => {
+		const dateStr = item.querySelector('.date').textContent.trim();
+		return { element: item, date: new Date(dateStr), dateStr };
+	});
+	const weeks = new Map();
+	dateItems.forEach(({ element, date, dateStr }) => {
+		const year = date.getFullYear();
+		const weekNumber = getWeekNumber(date);
+		const key = `${year}-${weekNumber}`;
+		if (!weeks.has(key)) weeks.set(key, []);
+		weeks.get(key).push({ element, date, dateStr });
+	});
+	weeks.forEach((weekItems) => {
+		let sundayItem = [...weekItems].reverse().find(({ date }) => date.getDay() === 6);
+		if (!sundayItem) {
+			const earliestDateStr = weekItems[weekItems.length - 1].dateStr;
+			sundayItem = [...weekItems].reverse().find(({ dateStr }) => dateStr === earliestDateStr);
+		}
+		if (sundayItem) {
+			const lastMatchingItem = [...weekItems].reverse().find(({ dateStr }) => dateStr === sundayItem.dateStr);
+			lastMatchingItem.element.classList.add('week-devide');
+		}
+	});
+}
+
+function getWeekNumber(date) {
+	const start = new Date(date.getFullYear(), 0, 1);
+	const diff = Math.floor((date - start) / (1000 * 60 * 60 * 24));
+	return Math.floor((diff + start.getDay()) / 7);
+}
+
+function copyString(element) {
+	const textToCopy = element.textContent;
+	navigator.clipboard.writeText(textToCopy)
+		.then(() => console.log('텍스트가 클립보드에 복사되었습니다.'))
+		.catch((err) => console.error('클립보드 복사에 실패했습니다: ', err));
+}
+
+async function viewCommitLog() {
+	await fetch('/run-commit-log');
+}
+
+// ---- month.js 병합: 월별 M/M 합계 사이드바 ----
+// #mmCont는 정적 HTML에 항상 존재하므로 동적 생성/스타일 주입 로직은 제거했다.
+
+function filterByMonth(arr) {
+	return arr.filter((obj) => obj.hasOwnProperty('month'));
+}
+
+function mMonthInit(obj) {
+	const mmCont = document.getElementById('mmCont');
+	if (!mmCont) return;
+	mmCont.innerHTML = '';
+
+	let monthlySums = {};
+	filterByMonth(obj).forEach(function (item) {
+		var date = new Date(item.date);
+		var monthh = date.getFullYear() + '-' + (date.getMonth() + 1).toString().padStart(2, '0');
+		if (!monthlySums[monthh]) monthlySums[monthh] = 0;
+		var sumVal = parseFloat(item.month);
+		if (!isNaN(sumVal)) monthlySums[monthh] += sumVal;
+	});
+
+	Object.keys(monthlySums).forEach(function (item) {
+		var value = monthlySums[item] === 0 ? 0 : monthlySums[item].toFixed(2);
+		var div = `<div class="mm"><span class="date_txt">${item}</span><span class="mm_txt">${value}</span></div>`;
+		mmCont.insertAdjacentHTML('beforeend', div);
+	});
+}
+
+// ---- time-alert.js 병합: 설정 화면 체크박스/시간으로 켜고 끄는 업로드 알림 ----
+
+let uploadAlertTimer = null;
+let uploadAlertTime = null;
+
+function checkTime() {
+	const now = new Date();
+	const currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+	if (currentTime === uploadAlertTime) {
+		alert(`지정한 시간 ${uploadAlertTime} 입니다!`);
+	}
+}
+
+function startUploadAlertTimer() {
+	stopUploadAlertTimer();
+	if (uploadAlertTime) {
+		uploadAlertTimer = setInterval(checkTime, 1000);
+	}
+}
+
+function stopUploadAlertTimer() {
+	if (uploadAlertTimer) {
+		clearInterval(uploadAlertTimer);
+		uploadAlertTimer = null;
+	}
+}
+
+async function initUploadAlert() {
+	const checkbox = document.getElementById('alert-enabled-checkbox');
+	const timeInput = document.getElementById('alert-time-input');
+	if (!checkbox || !timeInput) return;
+
+	let cfg = {};
+	try {
+		cfg = await (await fetch('./config.json')).json();
+	} catch (e) {
+		console.error('config load failed:', e);
+	}
+
+	uploadAlertTime = cfg.uploadAlertTime || '18:00';
+	const enabled = !!cfg.uploadAlertEnabled;
+	checkbox.checked = enabled;
+	timeInput.value = uploadAlertTime;
+	timeInput.disabled = !enabled;
+	if (enabled) startUploadAlertTimer();
+
+	async function persistAlertSetting() {
+		try {
+			await fetch('/config/alert', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ enabled: checkbox.checked, time: timeInput.value }),
+			});
+		} catch (e) {
+			console.error('alert setting update failed:', e);
+		}
+	}
+
+	checkbox.addEventListener('change', () => {
+		timeInput.disabled = !checkbox.checked;
+		if (checkbox.checked) {
+			if (!timeInput.value) timeInput.value = '18:00';
+			uploadAlertTime = timeInput.value;
+			startUploadAlertTimer();
+		} else {
+			stopUploadAlertTimer();
+		}
+		persistAlertSetting();
+	});
+
+	timeInput.addEventListener('change', () => {
+		uploadAlertTime = timeInput.value;
+		if (checkbox.checked) startUploadAlertTimer();
+		persistAlertSetting();
+	});
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 	initViewRouting();
+	initUploadAlert();
 });

@@ -23,7 +23,7 @@ $ npm install
 - theme : 기본 css이외에 추가 할 css (optional)
 - limit : 내 todo 목록 노출 개수 지정 (optional)
 - uploadLastDay : 내 todo 업로드 시 오늘부터 n 일 까지만 업로드 (optional)
-- plugins : js 파일을 추가로 로드하도록 설정 (optional)
+- uploadAlertEnabled / uploadAlertTime : 지정한 시각에 업로드 알림을 띄울지 여부와 시각 (설정 화면에서도 변경 가능)
 
 ## 서버 실행 :
 ```

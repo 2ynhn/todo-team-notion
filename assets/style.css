@@ -92,14 +92,6 @@ a {text-decoration:none; color:var(--color);}
 .topbar-title {font-weight:800; font-size:15px; letter-spacing:.01em;}
 .topbar-sep {width:1px; height:22px; background:rgba(255,255,255,.14);}
 
-.theme-switch {
-    position:relative; display:flex; align-items:center; gap:8px; padding:7px 24px 7px 11px;
-    border-radius:7px; background:rgba(255,255,255,.07); font-size:12px; color:rgba(255,255,255,.6);
-}
-.theme-switch::after {content:'▾'; position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:9px; color:rgba(255,255,255,.4); pointer-events:none;}
-#theme-select {appearance:none; -webkit-appearance:none; background:transparent; border:0; color:#fff; font-weight:700; font-size:12px; cursor:pointer;}
-#theme-select option {color:#111;}
-
 .btn-upload {
     display:flex; align-items:center; gap:8px; padding:7px 13px; border-radius:7px;
     background:var(--point-2); color:#fff; font-size:12px; font-weight:700; border:0; cursor:pointer;
@@ -166,23 +158,29 @@ a {text-decoration:none; color:var(--color);}
 .tabs .tab:hover {background:var(--hover);}
 .tabs .tab.active {background:var(--background-2); color:var(--color); font-weight:700;}
 
-.js-toDoForm {background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px 16px; display:flex; flex-direction:column; gap:0;}
-.js-toDoForm .fields {display:flex; flex-direction:column; gap:10px;}
-.field-row-main {display:grid; grid-template-columns:110px 1fr 90px 1fr; gap:10px 12px;}
-.field-row-sub, .field-row-detail {display:grid; grid-template-columns:1fr; gap:10px 12px;}
-.field label {display:none; font-size:10.5px; color:var(--color-2); margin-bottom:4px; font-weight:600;}
+/* 세로 폭을 최소화한 컴팩트 등록 폼: 라벨 없이 한 줄에 필드+저장 버튼을 배치 */
+.js-toDoForm {background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); padding:10px 12px; display:flex; flex-direction:column; gap:0; flex:0 0 auto;}
+.js-toDoForm .fields {display:flex; flex-direction:column; gap:8px;}
+.field-row-main {display:flex; align-items:center; gap:8px;}
+.field-row-main .field {flex:1; min-width:0;}
+.field-row-main .field-date {flex:0 0 128px;}
+.field-row-main .field-mm {flex:0 0 64px;}
+.field-row-main .field-url, .field-row-main .field-commit {flex:1 1 0;}
+.field-row-detail {display:flex;}
 .field input, .field textarea {
     width:100%; height:30px; border-radius:var(--radius-sm); background:var(--background);
     border:1px solid var(--line); padding:0 9px; font-size:12px; color:var(--color); box-sizing:border-box;
     transition:box-shadow var(--ease);
 }
 .field input:focus, .field textarea:focus {outline:none; box-shadow:var(--ring);}
-.field textarea {height:auto; padding:8px 9px; resize:vertical;}
-.js-toDoForm .submit {display:flex; justify-content:flex-end; margin-top:10px;}
-#Ysubmit {padding:7px 16px; border-radius:7px; background:var(--point-2); color:#fff; font-size:12px; font-weight:700; transition:filter var(--ease);}
+.field-row-detail textarea {height:30px; min-height:30px; padding:6px 9px; resize:vertical; width:100%; border-radius:var(--radius-sm); background:var(--background); border:1px solid var(--line); font-size:12px; color:var(--color); box-sizing:border-box; transition:box-shadow var(--ease);}
+.field-row-detail textarea:focus {outline:none; box-shadow:var(--ring);}
+.js-toDoForm .submit {flex:0 0 auto;}
+#Ysubmit {padding:0 16px; height:30px; border-radius:7px; background:var(--point-2); color:#fff; font-size:12px; font-weight:700; transition:filter var(--ease);}
 #Ysubmit:hover {filter:brightness(1.06);}
 
 .task-body {flex:1; display:flex; gap:16px; min-height:0;}
+.task-main {flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; min-height:0;}
 .task-list-card {
     --row-cols: 16px 76px 1.6fr 56px 64px 1fr 108px;
     flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;
@@ -396,6 +394,17 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
 .theme-option-label {font-size:12.5px; color:var(--color);}
 .theme-option.active .theme-option-label {font-weight:700; color:var(--point-2);}
 
+.alert-setting-row {display:flex; align-items:center; gap:16px; margin-top:14px;}
+.switch-label {display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--color); cursor:pointer;}
+.switch-label input[type="checkbox"] {width:16px; height:16px; accent-color:var(--point-2); cursor:pointer;}
+#alert-time-input {
+    height:32px; padding:0 9px; border-radius:var(--radius-sm); background:var(--background);
+    border:1px solid var(--line); font-size:12.5px; color:var(--color); box-sizing:border-box;
+    transition:box-shadow var(--ease), opacity var(--ease);
+}
+#alert-time-input:focus {outline:none; box-shadow:var(--ring);}
+#alert-time-input:disabled {opacity:.5; cursor:not-allowed;}
+
 .data-actions {display:flex; gap:10px;}
 .data-actions .btn-file {flex:1; padding:10px 0; border-radius:8px; background:var(--background-2); color:var(--color); font-size:12.5px; font-weight:700; transition:all var(--ease);}
 .data-actions .btn-file:hover {background:var(--line-2);}
@@ -448,14 +457,17 @@ button:has( > .loading-in-button), a:has( > .loading-in-button) {position:relati
     .rail {width:56px;}
     .rail-item {width:40px;}
     .topbar-search {width:140px;}
-    .field-row-main {grid-template-columns:1fr 1fr;}
+    .field-row-main {flex-wrap:wrap;}
+    .field-row-main .field-date, .field-row-main .field-mm {flex:1 1 90px;}
+    .field-row-main .field-title, .field-row-main .field-url, .field-row-main .field-commit {flex:1 1 160px;}
+    .js-toDoForm .submit {flex:1 1 100%;}
+    #Ysubmit {width:100%;}
     .team-summary {grid-template-columns:1fr;}
     .task-list-card {--row-cols: 16px 70px 1.6fr 50px 1fr 92px;}
     .grid-head > div:nth-child(6), .li .col-commit {display:none;}
 }
 @media (max-width:600px) {
     .topbar-search {display:none;}
-    .theme-switch .theme-switch-label {display:none;}
 }
 
 /* ---- scrollbars ------------------------------------------------------------ */

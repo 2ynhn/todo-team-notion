@@ -17,10 +17,9 @@
 				<span class="topbar-title">PYBC Ops</span>
 			</div>
 			<div class="topbar-sep"></div>
-			<div class="theme-switch">
-				<span class="theme-switch-label">Theme</span>
-				<select id="theme-select"></select>
-			</div>
+			<!-- 테마 선택은 설정 화면으로 이동. #theme-select 는 initThemeGrid()/themeSwitchInit()가
+			     여전히 참조하므로 화면에는 노출하지 않되 DOM에는 유지한다. -->
+			<select id="theme-select" hidden></select>
 			<button id="upload-button" class="btn-upload upload-button">
 				<span>Upload JSON</span>
 				<span id="last-upload-info"></span>
@@ -62,62 +61,54 @@
 				<section class="view" id="view-task" data-view-panel="task">
 					<div class="tabs"></div>
 
-					<form class="js-toDoForm">
-						<div class="fields">
-							<div class="field-row field-row-main">
-								<div class="field">
-									<label>날짜</label>
-									<input type="date" id="Ydate" value="" autocomplete="off" />
-								</div>
-								<div class="field field-title">
-									<label>업무 내용</label>
-									<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
-								</div>
-								<div class="field field-mm">
-									<label>M/M</label>
-									<input type="number" id="Ymonth" step="0.0625" placeholder="0.0" autocomplete="off" />
-								</div>
-								<div class="field field-url">
-									<label>Notion URL</label>
-									<input type="text" id="Yurl" placeholder="notion.so/…" />
-								</div>
-							</div>
-							<div class="field-row field-row-sub">
-								<div class="field field-commit">
-									<label>커밋 키워드</label>
-									<input type="text" id="Ycommit" placeholder="커밋 키워드" autocomplete="off" />
-								</div>
-							</div>
-							<div class="field-row field-row-detail">
-								<div class="field field-detail">
-									<label>업무내용 상세</label>
-									<textarea id="Ydeploy" rows="3" placeholder="업무내용 상세"></textarea>
-								</div>
-							</div>
-						</div>
-						<div class="submit">
-							<button id="Ysubmit" type="button">저장</button>
-						</div>
-					</form>
-
 					<div class="task-body">
-						<div class="task-list-card">
-							<div class="task-list-head">
-								<div class="task-list-title">업무 리스트</div>
-								<div class="task-list-filters" id="task-status-filters">
-									<button type="button" class="chip chip-active" data-status-filter="all">전체</button>
-									<button type="button" class="chip" data-status-filter="active">진행중</button>
-									<button type="button" class="chip" data-status-filter="done">완료</button>
+						<div class="task-main">
+							<form class="js-toDoForm">
+								<div class="fields">
+									<div class="field-row field-row-main">
+										<div class="field field-date">
+											<input type="date" id="Ydate" value="" autocomplete="off" />
+										</div>
+										<div class="field field-title">
+											<input type="text" id="Ytitle" placeholder="[키워드, 키워드] 업무내용" autocomplete="off" />
+										</div>
+										<div class="field field-mm">
+											<input type="number" id="Ymonth" step="0.0625" placeholder="0.0" autocomplete="off" />
+										</div>
+										<div class="field field-url">
+											<input type="text" id="Yurl" placeholder="notion.so/…" />
+										</div>
+										<div class="field field-commit">
+											<input type="text" id="Ycommit" placeholder="커밋 키워드" autocomplete="off" />
+										</div>
+										<div class="submit">
+											<button id="Ysubmit" type="button">저장</button>
+										</div>
+									</div>
+									<div class="field-row field-row-detail">
+										<textarea id="Ydeploy" rows="1" placeholder="업무내용 상세"></textarea>
+									</div>
 								</div>
-								<div class="work-summary">총 개수 : <span id="count"></span></div>
-							</div>
-							<div class="grid-head">
-								<div></div><div>날짜</div><div>업무 내용</div><div>M/M</div><div>Notion</div><div>커밋 키워드</div><div></div>
-							</div>
-							<div class="work-list">
-								<ul class="ul" id="todo-list">
-									<!-- {} -->
-								</ul>
+							</form>
+
+							<div class="task-list-card">
+								<div class="task-list-head">
+									<div class="task-list-title">업무 리스트</div>
+									<div class="task-list-filters" id="task-status-filters">
+										<button type="button" class="chip chip-active" data-status-filter="all">전체</button>
+										<button type="button" class="chip" data-status-filter="active">진행중</button>
+										<button type="button" class="chip" data-status-filter="done">완료</button>
+									</div>
+									<div class="work-summary">총 개수 : <span id="count"></span></div>
+								</div>
+								<div class="grid-head">
+									<div></div><div>날짜</div><div>업무 내용</div><div>M/M</div><div>Notion</div><div>커밋 키워드</div><div></div>
+								</div>
+								<div class="work-list">
+									<ul class="ul" id="todo-list">
+										<!-- {} -->
+									</ul>
+								</div>
 							</div>
 						</div>
 						<aside class="task-side">
@@ -217,6 +208,17 @@
 						<div class="card">
 							<div class="card-title">Theme</div>
 							<div class="theme-grid" id="theme-grid"></div>
+						</div>
+						<div class="card">
+							<div class="card-title">업로드 알림</div>
+							<div class="card-desc">지정한 시각에 JSON 업로드를 알려줍니다.</div>
+							<div class="alert-setting-row">
+								<label class="switch-label">
+									<input type="checkbox" id="alert-enabled-checkbox">
+									<span>알림 사용</span>
+								</label>
+								<input type="time" id="alert-time-input">
+							</div>
 						</div>
 						<div class="card">
 							<div class="card-title">데이터 관리</div>

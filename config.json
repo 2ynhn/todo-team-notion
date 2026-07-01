@@ -7,13 +7,8 @@
     "theme": "dark.css",
     "limit": 500,
     "uploadLastDay": 0,
+    "uploadAlertEnabled": true,
     "uploadAlertTime": "17:04",
-    "plugins": [
-        "ui.js",
-        "month.js",
-        "reload-everyday.js",
-        "time-alert.js"
-    ],
     "users": [
         {
             "id": "1111",

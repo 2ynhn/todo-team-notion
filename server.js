@@ -235,6 +235,30 @@ app.post('/config/limit', (req, res) => {
 	}
 });
 
+// config.json 의 업로드 알림(uploadAlertEnabled/uploadAlertTime) 값 변경
+app.post('/config/alert', (req, res) => {
+	const enabled = !!req.body.enabled;
+	const time = req.body.time;
+	const isValidTime = typeof time === 'string' && /^([01]\d|2[0-3]):([0-5]\d)$/.test(time);
+	if (!isValidTime) {
+		return res.status(400).json({ error: 'invalid time', time });
+	}
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.uploadAlertEnabled = enabled;
+		cfg.uploadAlertTime = time;
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.uploadAlertEnabled = enabled;
+		config.uploadAlertTime = time;
+		res.json({ message: 'alert setting updated', enabled, time });
+	} catch (e) {
+		console.error('Error updating alert setting:', e);
+		res.status(500).json({ error: 'failed to update alert setting', details: e.message });
+	}
+});
+
 // 커밋 로그 실행 요청을 처리하는 API 엔드포인트
 app.get('/run-commit-log', (req, res) => {
 	// 실제 셸 스크립트가 있는 경로를 지정합니다.
