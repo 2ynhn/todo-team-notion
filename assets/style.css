@@ -364,7 +364,7 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
 
 .hbar-list {display:flex; flex-direction:column; gap:8px;}
 .hbar-row {display:flex; align-items:center; gap:10px;}
-.hbar-row .hbar-label {width:44px; font-size:11.5px; color:var(--color-2); flex-shrink:0;}
+.hbar-row .hbar-label {width:48px; font-size:11.5px; color:var(--color-2); flex-shrink:0; white-space:nowrap;}
 .hbar-row .hbar-track {flex:1; height:10px; border-radius:5px; background:#eef2ff; overflow:hidden;}
 .hbar-row .hbar-fill {height:100%; background:var(--point-2); border-radius:5px;}
 .hbar-row .hbar-value {width:40px; text-align:right; font-size:12px; font-weight:700; color:var(--color);}

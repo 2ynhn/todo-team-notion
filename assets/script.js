@@ -817,6 +817,11 @@ function monthKeyOf(dateStr) {
 	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+// "YYYY-MM" -> "YY.MM" (연도가 바뀌어도 같은 달 숫자가 겹쳐 보이지 않도록 연도를 함께 표시)
+function formatMonthLabel(monthKey) {
+	return monthKey.slice(2).replace('-', '.');
+}
+
 function sumMonthValue(list, monthKey) {
 	return list
 		.filter((t) => t.month && monthKeyOf(t.date) === monthKey)
@@ -1019,6 +1024,18 @@ async function renderTeamView() {
 }
 
 /* ---------------------- Notion Sync 뷰 ---------------------- */
+// 유저별 "마지막 업로드 시각"은 서버(data/sync-meta.json)에 영속 저장되어 있어
+// 페이지를 새로고침하거나 다시 접속해도 남아있다. (이전엔 메모리 변수 lastSyncAt만
+// 썼는데, 그 값은 새로고침하면 사라져서 항상 "기록 없음"으로 보이는 문제가 있었다)
+async function fetchSyncMeta() {
+	try {
+		return await (await fetch('/sync-meta')).json();
+	} catch (e) {
+		console.error('sync-meta load failed:', e);
+		return {};
+	}
+}
+
 async function renderSyncView() {
 	const statusCard = document.getElementById('sync-status-card');
 	const userList = document.getElementById('sync-user-list');
@@ -1033,22 +1050,25 @@ async function renderSyncView() {
 	}
 	const connected = !!(cfg.notionID && cfg.notionAPI);
 	const deptLabel = users && users[0] && users[0].department;
+	const syncMeta = await fetchSyncMeta();
+	const masterLastUpload = syncMeta[masterId] ? new Date(syncMeta[masterId]) : null;
 
 	statusCard.classList.toggle('disconnected', !connected);
 	statusCard.innerHTML = `
 		<div class="sync-status-icon"><i></i></div>
 		<div class="sync-status-info">
 			<div class="sync-status-title">${connected ? '연결됨' + (deptLabel ? ' · ' + deptLabel + ' 업무 데이터베이스' : '') : '연결 안됨'}</div>
-			<div class="sync-status-sub">${lastSyncAt ? '마지막 동기화 · ' + timeAgo(lastSyncAt) : '이 세션에서 동기화한 기록이 없습니다'}</div>
+			<div class="sync-status-sub">${masterLastUpload ? '마지막 업로드 · ' + timeAgo(masterLastUpload) : '업로드 기록이 없습니다'}</div>
 		</div>
-		<button type="button" class="sync-status-action" id="sync-now-button" ${connected ? '' : 'disabled'}>지금 동기화</button>
+		<button type="button" class="sync-status-action" id="sync-now-button" ${connected ? '' : 'disabled'}>새로고침</button>
 	`;
 	const syncBtn = document.getElementById('sync-now-button');
 	if (syncBtn) {
 		syncBtn.addEventListener('click', async () => {
-			const upload = document.getElementById('upload-button');
-			if (upload) upload.click();
+			// Notion으로 업로드(push)하지 않는다 — 팀원별 현황을 다시 불러오기만 한다.
+			// 업로드는 topbar의 "Upload JSON" 버튼으로만 한다.
 			await loadAllUsersTodos(true);
+			renderSyncView();
 		});
 	}
 
@@ -1056,12 +1076,13 @@ async function renderSyncView() {
 	userList.innerHTML = '';
 	(users || []).filter((u) => u.active).forEach((u) => {
 		const list = map[u.id] || [];
+		const lastUpload = syncMeta[u.id] ? new Date(syncMeta[u.id]) : null;
 		const row = document.createElement('div');
 		row.className = 'sync-user-row';
 		row.innerHTML = `
 			<div class="member-avatar" style="background:${memberColor(u)}">${u.name.charAt(0)}</div>
 			<div class="sync-user-name">${u.name}</div>
-			<div class="sync-user-time">${u.id === masterId && lastSyncAt ? '마지막 업로드 · ' + timeAgo(lastSyncAt) : '마지막 업로드 기록 없음'}</div>
+			<div class="sync-user-time">${lastUpload ? '마지막 업로드 · ' + timeAgo(lastUpload) : '업로드 기록 없음'}</div>
 			<div class="sync-user-count">${list.length}건</div>
 		`;
 		userList.appendChild(row);
@@ -1098,6 +1119,10 @@ async function renderReportsView() {
 		byMonth[key].count += 1;
 		byMonth[key].mm += parseFloat(t.month) || 0;
 	});
+	// "YYYY-MM" 문자열은 그대로 사전식 정렬해도 시간순이 되지만(연도가 항상 4자리라
+	// 자릿수가 고정이라 안전함), 라벨을 "MM월"만 쓰면 연도가 바뀌어도 같은 숫자가 반복돼
+	// (예: 25년 9월과 26년 9월이 둘 다 "09월") 순서가 뒤섞인 것처럼 보일 수 있다.
+	// "YY.MM" 형태로 연도까지 표시해 구분한다.
 	const months = Object.keys(byMonth).sort().slice(-6);
 
 	if (!months.length) {
@@ -1111,18 +1136,20 @@ async function renderReportsView() {
 			const col = document.createElement('div');
 			col.className = 'bar-col' + (count === maxCount ? ' bar-max' : '');
 			const heightPx = Math.max(6, Math.round((count / maxCount) * 100));
-			col.innerHTML = `<div class="bar" style="height:${heightPx}px" title="${count}건"></div><div class="bar-label">${m.slice(5)}월</div>`;
+			col.innerHTML = `<div class="bar" style="height:${heightPx}px" title="${count}건"></div><div class="bar-label">${formatMonthLabel(m)}</div>`;
 			countChartEl.appendChild(col);
 		});
 
+		// 위 막대그래프와 같은 시간순(과거 → 최근)으로 정렬해서 두 패널의 순서가 다르게
+		// 보이지 않도록 한다 (기존엔 여기만 reverse()로 최근순이라 서로 뒤죽박죽으로 보였음).
 		mmTrendEl.innerHTML = '';
 		const maxMM = Math.max(0.01, ...months.map((m) => byMonth[m].mm));
-		[...months].reverse().forEach((m) => {
+		months.forEach((m) => {
 			const mm = byMonth[m].mm;
 			const pct = Math.max(2, Math.round((mm / maxMM) * 100));
 			const row = document.createElement('div');
 			row.className = 'hbar-row';
-			row.innerHTML = `<div class="hbar-label">${m.slice(5)}월</div><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div><div class="hbar-value">${mm.toFixed(2)}</div>`;
+			row.innerHTML = `<div class="hbar-label">${formatMonthLabel(m)}</div><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div><div class="hbar-value">${mm.toFixed(2)}</div>`;
 			mmTrendEl.appendChild(row);
 		});
 	}

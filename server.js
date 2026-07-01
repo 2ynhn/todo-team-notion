@@ -145,11 +145,43 @@ app.put('/todos/:userId', async (req, res) => {
       },
     });
 
-    res.json({ message: 'updated', user: userId });
+    // 5) 업로드 성공 시각을 서버에 영속 기록 (브라우저 새로고침/재접속해도 유지)
+    recordSyncMeta(userId);
+
+    res.json({ message: 'updated', user: userId, lastUploadAt: readSyncMeta()[userId] });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'failed to update todos' });
   }
+});
+
+// 유저별 "마지막 업로드 시각"을 data/sync-meta.json에 기록/조회
+const syncMetaPath = path.join(__dirname, 'data', 'sync-meta.json');
+
+function readSyncMeta() {
+  try {
+    return JSON.parse(fs.readFileSync(syncMetaPath, 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+
+function recordSyncMeta(userId) {
+  try {
+    if (!fs.existsSync(path.join(__dirname, 'data'))) {
+      fs.mkdirSync(path.join(__dirname, 'data'));
+    }
+    const meta = readSyncMeta();
+    meta[userId] = new Date().toISOString();
+    fs.writeFileSync(syncMetaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+  } catch (e) {
+    console.error('Error recording sync meta:', e);
+  }
+}
+
+// 유저별 마지막 업로드 시각 조회 (Sync 화면에서 사용)
+app.get('/sync-meta', (req, res) => {
+  res.json(readSyncMeta());
 });
 
 
