@@ -247,7 +247,7 @@ function buildTodoRowHTML(todo, isMaster) {
 
 	const hasCommit = !!todo.commit;
 	const commitCell = hasCommit
-		? `<span class="commit-text" title="${todo.commit}">${todo.commit}</span>`
+		? `<span class="commit-text" onclick="copyString(this)" title="클릭하여 복사: ${todo.commit}">${todo.commit}</span>`
 		: `<span class="col-empty">–</span>`;
 
 	const hasMonth = todo.month !== undefined && todo.month !== null && todo.month !== '';
@@ -351,8 +351,69 @@ function bindEdit(obj) {
 				<input type="checkbox" class="edit-ended" ${obj.ended ? 'checked' : ''}>
 				<button class="save-button" onclick="editSave('${obj.id}')">Save</button>
 				<button class="cancel-button" onclick="editCancel('${obj.id}')">Cancel</button>
+				<button type="button" class="rollover-button" onclick="rolloverTodo('${obj.id}')">이월</button>
 			</p>
 		`;
+}
+
+// '이월' 버튼: 이번 달에 못 끝낸 업무를 완료 처리("(이월) " 접두어)하고,
+// 같은 내용(제목/커밋 키워드)의 새 업무를 다음 달 1일자로 새로 등록한다.
+// (노션 URL/M-M은 새 달에 새로 채우는 값이라 비워둔다)
+function rolloverTodo(id) {
+	const li = document.getElementById(id);
+	const index = li.dataset.index;
+	const editDate = li.querySelector('.edit-date').value;
+	const editTitle = li.querySelector('.edit-title').value;
+	const editDetail = li.querySelector('.edit-detail').value;
+	const editMonth = li.querySelector('.edit-month').value;
+	const editUrl = li.querySelector('.edit-url').value;
+	const editCommit = li.querySelector('.edit-commit').value;
+
+	if (!editDate) {
+		alert('날짜가 없어 다음 달을 계산할 수 없습니다.');
+		return;
+	}
+	if (!confirm('이 업무를 완료 처리하고, 다음 달 1일에 동일한 업무를 새로 등록할까요?')) {
+		return;
+	}
+
+	// 1) 원본 업무: 완료 처리 + 제목 앞에 "(이월) " 표시 (이미 이월된 건 중복으로 안 붙임)
+	const rolledTitle = editTitle.startsWith('(이월) ') ? editTitle : '(이월) ' + editTitle;
+	const rolledObj = {
+		id,
+		date: editDate,
+		title: rolledTitle,
+		detail: editDetail,
+		ended: true,
+		month: editMonth,
+		url: editUrl,
+		commit: editCommit,
+	};
+	todos[index] = removeEmptyKeys(rolledObj);
+
+	// 2) 신규 업무: 원본 날짜 기준 "다음 달 1일". new Date(y, m, 1)에서 m은 원본 월(1~12,
+	// 1-indexed) 값을 그대로 넣는데, Date 생성자의 month 인자는 0-indexed라 자동으로
+	// "다음 달"이 되고, 12월이어도 연도가 자동으로 넘어간다 (UTC 변환 없이 로컬 값만 사용).
+	const [y, m] = editDate.split('-').map(Number);
+	const nextMonth = new Date(y, m, 1);
+	const nextDateStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+	const newTodo = {
+		id: generateId(),
+		date: nextDateStr,
+		title: editTitle, // "(이월)" 접두어 없는 원래 제목
+		commit: editCommit,
+		ended: false,
+	};
+	todos.unshift(removeEmptyKeys(newTodo));
+
+	countingTodo(todos);
+	saveTodos();
+	syncMasterAggregate();
+	if (typeof mMonthInit !== 'undefined') {
+		mMonthInit(todos);
+	}
+	renderTodos(todos);
 }
 
 // Save 버튼 클릭 이벤트
@@ -1547,7 +1608,12 @@ function getWeekNumber(date) {
 function copyString(element) {
 	const textToCopy = element.textContent;
 	navigator.clipboard.writeText(textToCopy)
-		.then(() => console.log('텍스트가 클립보드에 복사되었습니다.'))
+		.then(() => {
+			console.log('텍스트가 클립보드에 복사되었습니다.');
+			// 복사됐다는 걸 눈으로 바로 알 수 있도록 잠깐 표시를 준다.
+			element.classList.add('copied');
+			setTimeout(() => element.classList.remove('copied'), 900);
+		})
 		.catch((err) => console.error('클립보드 복사에 실패했습니다: ', err));
 }
 
