@@ -633,7 +633,15 @@ async function updateNotionFile(userId, todos) {
     });
 
     if (!res.ok) {
-      alert(`저장 실패: ${res.status}`);
+      // 서버가 내려주는 실제 실패 사유(Notion 쪽 에러 메시지 등)를 그대로 보여준다.
+      // 이게 뜨면 Notion에 실제로 반영이 안 된 것이므로, Sync 화면에 "업로드 기록 없음"이
+      // 뜨는 것도 정상 — 마지막 업로드가 실제로 성공한 적이 없다는 뜻이다.
+      let details = '';
+      try {
+        const errBody = await res.json();
+        details = errBody?.details ? `\n${errBody.details}` : '';
+      } catch (e) {}
+      alert(`저장 실패: ${res.status}${details}`);
       return false;
     }
 
@@ -820,6 +828,18 @@ function monthKeyOf(dateStr) {
 // "YYYY-MM" -> "YY.MM" (연도가 바뀌어도 같은 달 숫자가 겹쳐 보이지 않도록 연도를 함께 표시)
 function formatMonthLabel(monthKey) {
 	return monthKey.slice(2).replace('-', '.');
+}
+
+// 오늘 기준 "YYYY-MM" 키를 과거 → 최근 순으로 n개 생성 (이번 달 포함).
+// 데이터에 미래 날짜가 섞여 있어도 항상 오늘을 기준으로 한 고정된 달 목록을 쓰기 위함.
+function getLastNMonthKeys(n) {
+	const now = new Date();
+	const keys = [];
+	for (let i = n - 1; i >= 0; i--) {
+		const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+		keys.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+	}
+	return keys;
 }
 
 function sumMonthValue(list, monthKey) {
@@ -1110,7 +1130,7 @@ async function renderReportsView() {
 	const map = await loadAllUsersTodos();
 	const allTodos = Object.values(map).flat();
 
-	// 월별 집계 (데이터가 있는 달 중 최근 6개월)
+	// 월별 집계
 	const byMonth = {};
 	allTodos.forEach((t) => {
 		const key = monthKeyOf(t.date);
@@ -1119,23 +1139,25 @@ async function renderReportsView() {
 		byMonth[key].count += 1;
 		byMonth[key].mm += parseFloat(t.month) || 0;
 	});
-	// "YYYY-MM" 문자열은 그대로 사전식 정렬해도 시간순이 되지만(연도가 항상 4자리라
-	// 자릿수가 고정이라 안전함), 라벨을 "MM월"만 쓰면 연도가 바뀌어도 같은 숫자가 반복돼
-	// (예: 25년 9월과 26년 9월이 둘 다 "09월") 순서가 뒤섞인 것처럼 보일 수 있다.
-	// "YY.MM" 형태로 연도까지 표시해 구분한다.
-	const months = Object.keys(byMonth).sort().slice(-6);
+	// "데이터가 있는 달 중 정렬 후 마지막 6개"로 뽑으면, todo에 미래 날짜(예정 업무)가
+	// 섞여 있을 때 오늘과 무관하게 가장 미래 쪽 6개 달이 뽑혀서 듬성듬성하고 뒤죽박죽인
+	// 것처럼 보이는 문제가 있었다 (예: 26.12, 27.01, 27.05, 27.10, 28.01 …).
+	// "최근 6개월"은 오늘 날짜 기준으로 항상 고정된 달(이번 달 포함 과거 5개월)이어야
+	// 하므로, 데이터 유무와 상관없이 달 목록을 직접 계산한다.
+	const months = getLastNMonthKeys(6);
+	const totalCount = months.reduce((sum, m) => sum + (byMonth[m]?.count || 0), 0);
 
-	if (!months.length) {
+	if (totalCount === 0) {
 		countChartEl.innerHTML = '<p class="muted-note">데이터가 없습니다.</p>';
 		mmTrendEl.innerHTML = '<p class="muted-note">데이터가 없습니다.</p>';
 	} else {
 		countChartEl.innerHTML = '';
-		const maxCount = Math.max(1, ...months.map((m) => byMonth[m].count));
+		const maxCount = Math.max(1, ...months.map((m) => byMonth[m]?.count || 0));
 		months.forEach((m) => {
-			const count = byMonth[m].count;
+			const count = byMonth[m]?.count || 0;
 			const col = document.createElement('div');
-			col.className = 'bar-col' + (count === maxCount ? ' bar-max' : '');
-			const heightPx = Math.max(6, Math.round((count / maxCount) * 100));
+			col.className = 'bar-col' + (count === maxCount && count > 0 ? ' bar-max' : '');
+			const heightPx = count === 0 ? 0 : Math.max(6, Math.round((count / maxCount) * 100));
 			col.innerHTML = `<div class="bar" style="height:${heightPx}px" title="${count}건"></div><div class="bar-label">${formatMonthLabel(m)}</div>`;
 			countChartEl.appendChild(col);
 		});
@@ -1143,10 +1165,10 @@ async function renderReportsView() {
 		// 위 막대그래프와 같은 시간순(과거 → 최근)으로 정렬해서 두 패널의 순서가 다르게
 		// 보이지 않도록 한다 (기존엔 여기만 reverse()로 최근순이라 서로 뒤죽박죽으로 보였음).
 		mmTrendEl.innerHTML = '';
-		const maxMM = Math.max(0.01, ...months.map((m) => byMonth[m].mm));
+		const maxMM = Math.max(0.01, ...months.map((m) => byMonth[m]?.mm || 0));
 		months.forEach((m) => {
-			const mm = byMonth[m].mm;
-			const pct = Math.max(2, Math.round((mm / maxMM) * 100));
+			const mm = byMonth[m]?.mm || 0;
+			const pct = mm === 0 ? 0 : Math.max(2, Math.round((mm / maxMM) * 100));
 			const row = document.createElement('div');
 			row.className = 'hbar-row';
 			row.innerHTML = `<div class="hbar-label">${formatMonthLabel(m)}</div><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div><div class="hbar-value">${mm.toFixed(2)}</div>`;

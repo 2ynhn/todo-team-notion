@@ -146,12 +146,16 @@ app.put('/todos/:userId', async (req, res) => {
     });
 
     // 5) 업로드 성공 시각을 서버에 영속 기록 (브라우저 새로고침/재접속해도 유지)
-    recordSyncMeta(userId);
+    const recorded = recordSyncMeta(userId);
+    console.log(`[upload] Notion 업데이트 성공 (user=${userId}), sync-meta 기록 ${recorded ? '성공' : '실패'}`);
 
     res.json({ message: 'updated', user: userId, lastUploadAt: readSyncMeta()[userId] });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'failed to update todos' });
+    // 실패 원인을 뭉뚱그리지 않고 그대로 내려보낸다 (예: DB/페이지를 못 찾음, 권한 없음 등).
+    // 여기서 실패하면 recordSyncMeta는 호출되지 않으므로 Sync 화면에 "업로드 기록 없음"이
+    // 뜨는 게 정상 동작이다 — 실제로 Notion에 반영된 적이 없다는 뜻이기 때문.
+    console.error('[upload] Notion 업데이트 실패:', e.message || e);
+    res.status(500).json({ error: 'failed to update todos', details: e.message || String(e) });
   }
 });
 
@@ -174,13 +178,17 @@ function recordSyncMeta(userId) {
     const meta = readSyncMeta();
     meta[userId] = new Date().toISOString();
     fs.writeFileSync(syncMetaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+    return true;
   } catch (e) {
     console.error('Error recording sync meta:', e);
+    return false;
   }
 }
 
-// 유저별 마지막 업로드 시각 조회 (Sync 화면에서 사용)
+// 유저별 마지막 업로드 시각 조회 (Sync 화면에서 사용). 브라우저/중간 프록시가
+// 캐시해서 새로고침해도 갱신 안 되는 상황을 막기 위해 캐시를 명시적으로 끈다.
 app.get('/sync-meta', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.json(readSyncMeta());
 });
 
