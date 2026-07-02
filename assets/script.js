@@ -254,11 +254,14 @@ function buildTodoRowHTML(todo, isMaster) {
 	const mmCell = hasMonth ? todo.month : '–';
 
 	const hasDetail = !!(todo.detail || todo.commit);
+	// 상세보기 버튼은 제목 글자 바로 뒤에 붙여서 보여준다. 실제 클릭 동작은
+	// 부모인 .title(has-detail)에 달려 있고, 버튼 클릭도 이벤트 버블링으로 그대로 열린다.
 	const detailBtn = hasDetail
-		? `<button onclick="deployView(this);" class="deploy-file" title="상세 보기"></button>`
+		? `<button type="button" class="deploy-file" title="상세 보기"></button>`
 		: '';
+	const titleAttr = hasDetail ? ' class="title has-detail" onclick="deployView(this)"' : ' class="title"';
 
-	let functionsHTML = detailBtn;
+	let functionsHTML = '';
 	if (isMaster) {
 		const endBtn = todo.ended !== true
 			? `<button class="end-button" data-id="${todo.id}" title="완료 처리"></button>`
@@ -271,14 +274,20 @@ function buildTodoRowHTML(todo, isMaster) {
 	}
 
 	return `
+		<button type="button" class="flag" title="중요 표시" onclick="toggleFlag(this)"></button>
 		<span class="date">${todo.date ?? ''}</span>
-		<span class="title">${todo.title ?? ''}</span>
+		<span${titleAttr}>${todo.title ?? ''}${detailBtn}</span>
 		<span class="col-mm${hasMonth ? '' : ' is-empty'}">${mmCell}</span>
 		<div class="col-notion">${urlCell}</div>
 		<div class="col-commit">${commitCell}</div>
 		<p class="functions">${functionsHTML}</p>
 		<div class="deploy"><pre>${todo?.detail ?? ''}</pre></div>
 	`;
+}
+
+// 플래그 버튼: 업무 항목을 눈에 띄게 표시(토글)한다. 서버에는 저장하지 않는 화면 전용 표시.
+function toggleFlag(btn) {
+	btn.closest('.li').classList.toggle('flag');
 }
 
 function renderTodos(todos) {
@@ -348,9 +357,12 @@ function bindEdit(obj) {
 				<textarea class="edit-detail" rows="10">${obj?.detail ?? ''}</textarea>
 			</p>
 			<p class="functions">
-				<input type="checkbox" class="edit-ended" ${obj.ended ? 'checked' : ''}>
-				<button class="save-button" onclick="editSave('${obj.id}')">Save</button>
-				<button class="cancel-button" onclick="editCancel('${obj.id}')">Cancel</button>
+				<label class="edit-ended-label">
+					<input type="checkbox" class="edit-ended" ${obj.ended ? 'checked' : ''}>
+					완료하기
+				</label>
+				<button class="save-button" onclick="editSave('${obj.id}')">저장</button>
+				<button class="cancel-button" onclick="editCancel('${obj.id}')">취소</button>
 				<button type="button" class="rollover-button" onclick="rolloverTodo('${obj.id}')">이월</button>
 			</p>
 		`;
@@ -1521,7 +1533,7 @@ function keywordInit() {
 }
 
 function deployView(obj) {
-	const li = obj.parentNode.parentNode;
+	const li = obj.closest('.li');
 	var thisID = li.getAttribute('id');
 
 	var cont, commit;
@@ -1543,11 +1555,11 @@ function displayCurrent(id) {
 function toLayer(cont, cmmt) {
 	const content = cont ? cont.replace(/\n/g, '<br>') : '';
 	const commit = cmmt ? cmmt : '';
-	const button = cmmt ? '<button onclick="this.previousElementSibling.click(); viewCommitLog();">키워드 복사 + bash 창 열기</button>' : '';
+	const button = cmmt ? '<button type="button" class="layer-action-btn" onclick="this.previousElementSibling.click(); viewCommitLog();">키워드 복사 + bash 창 열기</button>' : '';
 	const layer = `
 		<div class="layer">
 			<div class="cont">
-				<div class="commit">커밋 키워드: <span onclick="copyString(this)">${commit}</span> ${button}</div>
+				<div class="commit">커밋 키워드: <span class="commit-text" onclick="copyString(this)" title="클릭하여 복사: ${commit}">${commit}</span> ${button}</div>
 				<div class="str">${content}</div>
 			</div>
 		</div>

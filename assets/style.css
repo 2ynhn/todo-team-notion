@@ -206,23 +206,33 @@ a {text-decoration:none; color:var(--color);}
     position:relative; display:grid; grid-template-columns:var(--row-cols); align-items:center; gap:10px; width:100%;
     padding:9px 16px; line-height:1.5; transition:background-color var(--ease);
 }
-.li::before {content:''; width:8px; height:8px; border-radius:50%; background:var(--point-2);}
-.li.ended::before {background:var(--color-2);}
-/* .li.day-in-1:not(.ended)::before, .li.day-in-2:not(.ended)::before, .li.day-in-3:not(.ended)::before {background:var(--danger);} */
+.li .flag {width:16px; height:16px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.li .flag::before {content:''; width:8px; height:8px; border-radius:50%; background:var(--point-2); transition:background-color var(--ease);}
+.li.ended .flag::before {background:var(--color-2);}
+/* .li.day-in-1:not(.ended) .flag::before, .li.day-in-2:not(.ended) .flag::before, .li.day-in-3:not(.ended) .flag::before {background:var(--danger);} */
 .li:hover {background-color:var(--hover);}
 .li + .li {border-top:1px solid var(--line);}
 .li.week-devide + .li {border-top:1px solid var(--line-2);}
 .li .date {font-size:11.5px; color:var(--color-2); font-family:var(--font-mono);}
 .li .title {min-width:0; font-size:12.5px; color:var(--color); overflow-wrap:anywhere;}
+.li .title.has-detail {cursor:pointer;}
+.li .title.has-detail:hover {color:var(--point-2);}
+.li .title .deploy-file {
+    display:inline-block; vertical-align:middle; width:14px; height:14px; margin-left:6px;
+    opacity:.55; background-color:var(--color-2); mask:url(./images/detail.png); mask-size:100%;
+    -webkit-mask:url(./images/detail.png); -webkit-mask-size:100%;
+    text-indent:-999px; overflow:hidden; cursor:pointer;
+}
+.li .title.has-detail:hover .deploy-file {opacity:1; background-color:var(--point-2);}
 .li .month {display:none;}
 .li .col-mm {text-align:center; font-size:12px;}
 .li .col-mm.is-empty {font-weight:400; color:var(--color-2);}
 .li .col-notion, .li .col-commit {min-width:0; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .li .col-commit {text-align:left; font-size:11.5px; font-family:var(--font-mono); color:var(--color-2);}
 .li .col-empty {color:var(--color-2); opacity:.6;}
-.li .commit-text {cursor:pointer; border-radius:3px; transition:color var(--ease), background-color var(--ease);}
-.li .commit-text:hover {color:var(--point-2); background:color-mix(in srgb, var(--point-2) 10%, transparent);}
-.li .commit-text.copied {color:var(--success); background:color-mix(in srgb, var(--success) 14%, transparent);}
+.commit-text {cursor:pointer; border-radius:3px; transition:color var(--ease), background-color var(--ease);}
+.commit-text:hover {color:var(--point-2); background:color-mix(in srgb, var(--point-2) 10%, transparent);}
+.commit-text.copied {color:var(--success); background:color-mix(in srgb, var(--success) 14%, transparent);}
 .li .deploy {display:none; grid-column:1 / -1;}
 .li .functions {display:flex; align-items:center; justify-content:flex-end; gap:8px; white-space:nowrap; font-size:.8rem;}
 .li .functions button {font-size:.8rem;}
@@ -232,18 +242,17 @@ li.ended .title, li.ended .date {color:var(--color-2);}
 li.ended .date {font-weight:400; opacity:.85;}
 .li.list-checked {background-color:color-mix(in srgb, var(--point-2) 8%, transparent);}
 .li.current {background-color:color-mix(in srgb, var(--point-2) 14%, transparent);}
+.li.flag {background-color:color-mix(in srgb, var(--warning) 18%, transparent);}
+.li.flag:hover {background-color:color-mix(in srgb, var(--warning) 24%, transparent);}
 
-.li .fn-update {position:absolute; top:50%; left:0; transform:translateY(-50%); opacity:0; transition:opacity var(--ease);}
-.li .fn-update button {opacity:.6; font-size:1px; overflow:hidden; text-indent:-999px; width:16px; height:16px; background-color:var(--point-2); mask:url(./images/next-day.png); mask-size:100%; cursor:pointer;}
-.li .fn-update button:hover {opacity:1;}
-.li:hover .fn-update {opacity:1;}
+.li .fn-update {display:none;}
 
-.li .edit-button, .li .delete-button, .li .end-button, .li .save-button, .li .url, .li .deploy-file, .li .cancel-button {
+.li .edit-button, .li .delete-button, .li .end-button, .li .save-button, .li .url, .li .cancel-button {
     opacity:.55; flex-shrink:0; cursor:pointer; text-indent:-999px; overflow:hidden;
     width:20px; height:20px; border-radius:6px; background-color:var(--color-2);
     transition:opacity var(--ease), background-color var(--ease);
 }
-.li .edit-button:hover, .li .delete-button:hover, .li .end-button:hover, .li .save-button:hover, .li .url:hover, .li .deploy-file:hover, .li .cancel-button:hover {opacity:1;}
+.li .edit-button:hover, .li .delete-button:hover, .li .end-button:hover, .li .save-button:hover, .li .url:hover, .li .cancel-button:hover {opacity:1;}
 .li .delete-button:hover {background-color:var(--danger);}
 .li .end-button:hover, .li .save-button:hover {background-color:var(--point-2);}
 .li .edit-button {mask:url(./images/edit.png); mask-size:100%;}
@@ -252,7 +261,6 @@ li.ended .date {font-weight:400; opacity:.85;}
 .li .cancel-button {mask:url(./images/cancel.png); mask-size:100%;}
 .li .end-button {mask:url(./images/check-end.png); mask-size:70%; mask-repeat:no-repeat; mask-position:center;}
 .li .url {display:inline-block; vertical-align:middle; mask:url(./images/link.png); mask-size:100%;}
-.li .deploy-file {mask:url(./images/detail.png); mask-size:100%;}
 
 /* edit-in-place row */
 .ul:has(.li.edit) .li {opacity:.4; pointer-events:none;}
@@ -270,8 +278,18 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
 .li.edit .edit-url {flex:1 1 45%;}
 .li.edit .edit-commit {flex:1 1 45%;}
 .li.edit .edit-detail {flex:1 1 100%; margin-top:4px;}
-.li.edit .functions {flex:0 0 auto; justify-content:flex-start; margin-top:8px; gap:10px;}
+.li.edit .functions {flex:0 0 auto; justify-content:flex-end; margin-top:8px; gap:10px;}
 .li .edit-ended {width:16px; height:16px; accent-color:var(--point-2); cursor:pointer;}
+.li .edit-ended-label {display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--color-2); cursor:pointer;}
+.li.edit .save-button, .li.edit .cancel-button {
+    width:auto; height:22px; padding:0 12px; border-radius:6px; font-size:11px; font-weight:700;
+    text-indent:0; overflow:visible; mask:none; -webkit-mask:none; opacity:1;
+    transition:all var(--ease);
+}
+.li.edit .save-button {color:#fff; background:var(--point-2);}
+.li.edit .save-button:hover {filter:brightness(1.08); background:var(--point-2);}
+.li.edit .cancel-button {color:var(--color-2); background:var(--background-2); box-shadow:inset 0 0 0 1px var(--line);}
+.li.edit .cancel-button:hover {background:var(--line-2); color:var(--color);}
 .li.edit .rollover-button {
     height:22px; padding:0 10px; border-radius:6px; font-size:11px; font-weight:700;
     color:var(--point-2); background:color-mix(in srgb, var(--point-2) 12%, transparent);
@@ -441,7 +459,9 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
     background-color:var(--background-3); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
 }
 .layer .cont .commit {position:relative; display:flex; gap:8px; align-items:center; color:var(--point-1); min-height:36px; padding:8px 14px; overflow:hidden; font-size:.9rem; background-color:var(--background); border-radius:var(--button-radius);}
-.layer .cont .commit span {position:relative; font-size:.9rem; color:var(--color); cursor:pointer;}
+.layer .cont .commit .commit-text {font-size:.9rem; padding:2px 6px;}
+.layer .cont .commit .layer-action-btn {padding:6px 12px; border-radius:var(--button-radius); background:var(--point-2); color:#fff; font-size:12px; font-weight:700; white-space:nowrap; transition:filter var(--ease);}
+.layer .cont .commit .layer-action-btn:hover {filter:brightness(1.08);}
 .layer .cont .str {position:relative; min-height:10rem; max-height:70vh; height:50vh; padding:18px; overflow:auto; color:var(--color); font-size:.92rem; line-height:1.7; background-color:var(--background); border-radius:var(--button-radius);}
 
 .loading {position:fixed; inset:0; z-index:99; background:rgba(15,20,32,.5) url('./images/puff.svg') no-repeat center/96px;}
