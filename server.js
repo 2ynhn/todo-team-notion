@@ -192,6 +192,45 @@ app.get('/sync-meta', (req, res) => {
   res.json(readSyncMeta());
 });
 
+// Notion 페이지의 'user' 속성 값을 읽는다. DB 스키마에 따라 title/rich_text
+// 둘 중 하나일 수 있어(GET에서는 title, PUT에서는 rich_text로 필터링하고 있음) 둘 다 지원한다.
+function extractUserIdFromPage(page) {
+  const prop = page.properties && page.properties.user;
+  if (!prop) return null;
+  if (prop.type === 'title' && prop.title.length) return prop.title[0].plain_text;
+  if (prop.type === 'rich_text' && prop.rich_text.length) return prop.rich_text[0].plain_text;
+  return null;
+}
+
+// 팀원 전체의 Notion 페이지 마지막 수정 시각을 한 번에 조회한다.
+// sync-meta.json(이 서버를 통해 업로드한 기록)은 master가 이 앱으로 업로드했을 때만
+// 남는데, 멤버는 이 앱으로 업로드하는 개념 자체가 없어 항상 "기록 없음"으로 보였다.
+// Notion이 실제로 관리하는 last_edited_time을 쓰면 누가 어떤 경로로 갱신했든
+// (다른 서버 인스턴스, Notion 앱에서 직접 등) 정확한 마지막 수정 시각을 보여줄 수 있다.
+app.get('/notion-status', async (req, res) => {
+  try {
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    if (!database.data_sources || database.data_sources.length === 0) {
+      return res.json({});
+    }
+    const dataSourceId = database.data_sources[0].id;
+    const query = await notion.dataSources.query({ data_source_id: dataSourceId });
+
+    const result = {};
+    query.results.forEach((page) => {
+      const userId = extractUserIdFromPage(page);
+      if (userId) {
+        result[userId] = page.last_edited_time;
+      }
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (e) {
+    console.error('[notion-status] failed:', e.message || e);
+    res.status(500).json({ error: 'failed to load notion status', details: e.message || String(e) });
+  }
+});
+
 
 
 app.get('/masterUserId', (req, res) => {

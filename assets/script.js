@@ -1056,6 +1056,20 @@ async function fetchSyncMeta() {
 	}
 }
 
+// Notion이 실제로 관리하는 페이지별 마지막 수정 시각. sync-meta(이 서버를 통해
+// 업로드했을 때만 기록됨, master만 해당)와 달리 팀원이 어떤 경로로 Notion 값을
+// 갱신했든 정확히 반영되므로 이걸 우선 사용한다.
+async function fetchNotionStatus() {
+	try {
+		const res = await fetch('/notion-status');
+		if (!res.ok) return {};
+		return await res.json();
+	} catch (e) {
+		console.error('notion-status load failed:', e);
+		return {};
+	}
+}
+
 async function renderSyncView() {
 	const statusCard = document.getElementById('sync-status-card');
 	const userList = document.getElementById('sync-user-list');
@@ -1070,8 +1084,16 @@ async function renderSyncView() {
 	}
 	const connected = !!(cfg.notionID && cfg.notionAPI);
 	const deptLabel = users && users[0] && users[0].department;
-	const syncMeta = await fetchSyncMeta();
-	const masterLastUpload = syncMeta[masterId] ? new Date(syncMeta[masterId]) : null;
+	// Notion의 last_edited_time을 우선 소스로 쓰고, 이 서버를 통한 업로드 기록
+	// (sync-meta, master만 존재)은 둘 다 있을 때 더 최신 쪽을 고르는 보조 수단으로 쓴다.
+	const [syncMeta, notionStatus] = await Promise.all([fetchSyncMeta(), fetchNotionStatus()]);
+	function resolveLastUpload(userId) {
+		const fromNotion = notionStatus[userId] ? new Date(notionStatus[userId]) : null;
+		const fromLocal = syncMeta[userId] ? new Date(syncMeta[userId]) : null;
+		if (fromNotion && fromLocal) return fromNotion > fromLocal ? fromNotion : fromLocal;
+		return fromNotion || fromLocal;
+	}
+	const masterLastUpload = resolveLastUpload(masterId);
 
 	statusCard.classList.toggle('disconnected', !connected);
 	statusCard.innerHTML = `
@@ -1096,7 +1118,7 @@ async function renderSyncView() {
 	userList.innerHTML = '';
 	(users || []).filter((u) => u.active).forEach((u) => {
 		const list = map[u.id] || [];
-		const lastUpload = syncMeta[u.id] ? new Date(syncMeta[u.id]) : null;
+		const lastUpload = resolveLastUpload(u.id);
 		const row = document.createElement('div');
 		row.className = 'sync-user-row';
 		row.innerHTML = `
