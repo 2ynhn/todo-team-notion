@@ -16,6 +16,12 @@ let tempLi = '';
 let tempTodo = {};
 let limit = Infinity;
 
+// Ctrl+Z 되돌리기용: 마지막으로 저장 성공한 시점의 todos 스냅샷(직렬화 문자열).
+// saveTodos()가 새 값을 저장하기 "직전"에 이 값을 localStorage로 옮겨 undo 대상으로 삼고,
+// 그 다음 이번에 저장하는 값으로 갱신한다.
+let lastSavedSnapshot = null;
+const UNDO_STORAGE_KEY = 'todoUndoSnapshot';
+
 // users by config.json
 let config, users, masterId, activeUser, fileID, uploadLastDay;
 
@@ -181,7 +187,8 @@ async function loadTodoData(userId) {
 		todos = todoData;
 		loadingRemove();
 		console.log(userId);
-		// --------------- localStorage.setItem('todos', JSON.stringify(todoData));
+		// 새로고침 직후 첫 변경사항도 되돌릴 수 있도록, 로드 시점 상태를 기준으로 삼는다.
+		lastSavedSnapshot = JSON.stringify(todoData);
 	} else {
 		const fileContent = await fetchNotionFiles(userId);
 		// fetchNotionFiles는 로드 실패 시 (alert 후) null을 반환한다
@@ -394,9 +401,52 @@ function editCancel(id) {
 }
 
 function saveTodos() {
-	//------------------- localStorage.setItem('todos', JSON.stringify(todos));
+	// 이번에 저장하려는 값(todos)으로 덮어쓰기 "직전"에, 마지막으로 저장에 성공했던
+	// 값을 undo 대상으로 localStorage에 옮겨둔다. (최초 저장 전이라 lastSavedSnapshot이
+	// 없으면 되돌릴 이전 상태가 없다는 뜻이므로 건너뛴다)
+	if (lastSavedSnapshot !== null) {
+		try {
+			localStorage.setItem(UNDO_STORAGE_KEY, lastSavedSnapshot);
+		} catch (e) {
+			console.error('undo 스냅샷 저장 실패:', e);
+		}
+	}
+	lastSavedSnapshot = JSON.stringify(todos);
 	saveButton.click();
 }
+
+// Ctrl+Z(맥은 Cmd+Z): 확인창을 띄우고, 확인하면 마지막 저장 이전 상태로 되돌린다.
+document.addEventListener('keydown', (e) => {
+	if (!((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z')) return;
+
+	// 입력 필드(제목/상세/편집 인풋 등)에서는 브라우저 기본 텍스트 되돌리기를 살려둔다.
+	const tag = e.target.tagName;
+	if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+	// master 데이터만 이 앱에서 수정/저장하므로, 다른 팀원 탭을 보고 있을 땐 대상이 없다.
+	if (activeUser !== masterId) return;
+
+	e.preventDefault();
+
+	const snapshot = localStorage.getItem(UNDO_STORAGE_KEY);
+	if (!snapshot) {
+		alert('되돌릴 이전 저장 기록이 없습니다.');
+		return;
+	}
+
+	if (confirm('바로 직전에 저장된 상태로 되돌릴까요?')) {
+		try {
+			todos = JSON.parse(snapshot);
+		} catch (err) {
+			console.error('undo 스냅샷 파싱 실패:', err);
+			alert('되돌리기에 실패했습니다. 저장된 데이터가 손상되었습니다.');
+			return;
+		}
+		countingTodo(todos);
+		renderTodos(todos);
+		saveTodos();
+	}
+});
 function removeEmptyKeys(obj) {
 	for (let key in obj) {
 		if (obj.hasOwnProperty(key)) {
