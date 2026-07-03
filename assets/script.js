@@ -22,6 +22,29 @@ let limit = Infinity;
 let lastSavedSnapshot = null;
 const UNDO_STORAGE_KEY = 'todoUndoSnapshot';
 
+// 플래그(항목 마킹) 표시는 서버에 저장하지 않고 브라우저 localStorage에만 남긴다.
+// 화면을 새로고침하거나 다른 뷰를 다녀와도 renderTodos()가 다시 그릴 때 이 목록을
+// 기준으로 .flag 클래스를 복원한다.
+const FLAG_STORAGE_KEY = 'todoFlaggedIds';
+
+function getFlaggedIds() {
+	try {
+		const raw = localStorage.getItem(FLAG_STORAGE_KEY);
+		return new Set(raw ? JSON.parse(raw) : []);
+	} catch (e) {
+		console.error('flag 목록 로드 실패:', e);
+		return new Set();
+	}
+}
+
+function saveFlaggedIds(idSet) {
+	try {
+		localStorage.setItem(FLAG_STORAGE_KEY, JSON.stringify([...idSet]));
+	} catch (e) {
+		console.error('flag 목록 저장 실패:', e);
+	}
+}
+
 // users by config.json
 let config, users, masterId, activeUser, fileID, uploadLastDay;
 
@@ -289,9 +312,21 @@ function buildTodoRowHTML(todo, isMaster) {
 	`;
 }
 
-// 플래그 버튼: 업무 항목을 눈에 띄게 표시(토글)한다. 서버에는 저장하지 않는 화면 전용 표시.
+// 플래그 버튼: 업무 항목을 눈에 띄게 표시(토글)한다. 서버(config/todos)에는 저장하지
+// 않고 localStorage(FLAG_STORAGE_KEY)에만 남겨서, 새로고침/다른 화면 이동 후에도
+// renderTodos()가 복원할 수 있게 한다.
 function toggleFlag(btn) {
-	btn.closest('.li').classList.toggle('flag');
+	const li = btn.closest('.li');
+	const id = li.getAttribute('id');
+	const flagged = li.classList.toggle('flag');
+
+	const ids = getFlaggedIds();
+	if (flagged) {
+		ids.add(id);
+	} else {
+		ids.delete(id);
+	}
+	saveFlaggedIds(ids);
 }
 
 function renderTodos(todos) {
@@ -302,6 +337,7 @@ function renderTodos(todos) {
 	todos.sort((a, b) => new Date(b.date) - new Date(a.date)); //sort by date
 
 	const isMaster = masterId === activeUser;
+	const flaggedIds = getFlaggedIds();
 
 	todos.forEach((todo, index) => {
 		const li = document.createElement('li');
@@ -318,6 +354,9 @@ function renderTodos(todos) {
 		}
 		if (todo.ended === true) {
 			li.classList.add('ended');
+		}
+		if (flaggedIds.has(todo.id)) {
+			li.classList.add('flag');
 		}
 
 		li.innerHTML = buildTodoRowHTML(todo, isMaster);
@@ -578,6 +617,12 @@ todoList.addEventListener('click', (event) => {
 				liToRemove.remove();
 			}
 			updateIndexes(); // 삭제 후 남은 `li`들의 data-index 업데이트
+
+			// 삭제된 업무의 플래그 기록도 localStorage에서 함께 정리
+			const flaggedIds = getFlaggedIds();
+			if (flaggedIds.delete(id)) {
+				saveFlaggedIds(flaggedIds);
+			}
 			saveTodos();
 			syncMasterAggregate();
 			if (typeof mMonthInit !== 'undefined') {
