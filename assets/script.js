@@ -374,8 +374,7 @@ function renderTodos(todos) {
 	document.getElementById('Ydate').valueAsDate = new Date();
 	applyTaskFilters();
 
-	// 예전엔 config.plugins로 ui.js/month.js를 매 렌더마다 <script> 태그로 다시
-	// 불러왔는데(재선언 오류·경쟁상태의 원인), 이제 항상 켜져 있는 내장 기능이라 바로 호출한다.
+	// 항상 켜져 있는 내장 기능(구 ui.js/month.js를 병합). config.plugins와 무관하게 항상 실행된다.
 	keywordInit();
 	dateColorize();
 	markWeekStart();
@@ -383,6 +382,31 @@ function renderTodos(todos) {
 		uptodate();
 	}
 	mMonthInit(todos);
+
+	loadPlugins();
+}
+
+// 사용자 추가 플러그인: config.json의 plugins 배열에 assets/ 폴더 안의 스크립트
+// 파일명을 적어두면 렌더마다 <script> 태그로 다시 불러와 실행한다(예전 방식 그대로 복원).
+// 매번 다시 로드되므로, 플러그인 스크립트는 top-level let/const 대신 var나
+// 즉시실행함수(IIFE)로 작성해야 재선언 오류 없이 안전하게 반복 실행된다.
+function loadPlugins() {
+	fetch('./config.json')
+		.then((response) => response.json())
+		.then((cfg) => {
+			if (cfg && cfg.plugins && Array.isArray(cfg.plugins)) {
+				cfg.plugins.forEach((plugin) => {
+					const oldScript = document.querySelector(`script[src="./assets/${plugin}"]`);
+					if (oldScript) {
+						oldScript.remove(); // 기존 script 삭제
+					}
+					const script = document.createElement('script');
+					script.src = `./assets/${plugin}`;
+					document.head.appendChild(script);
+				});
+			}
+		})
+		.catch((e) => console.error('plugins 로드 실패:', e));
 }
 
 function bindEdit(obj) {
