@@ -249,8 +249,11 @@ li.ended .date {font-weight:400; opacity:.85;}
 .li.current {background-color:color-mix(in srgb, var(--point-2) 14%, transparent);}
 .li.flag {background-color:color-mix(in srgb, var(--warning) 18%, transparent);}
 .li.flag:hover {background-color:color-mix(in srgb, var(--warning) 24%, transparent);}
-
-.li .fn-update {display:none;}
+.li .fn-update {display:none; position: absolute;top: calc(50% - 2px);left: 2px; transform: translateY(-50%);}
+.li .fn-update button {position: relative;width: 8px;height: 12px;}
+.li .fn-update button::before {position: absolute; top: 50%;left: 50%;transform: translate(-50%, -50%); content: '▲'; font-size: 12px;font-weight: 700;}
+.li:hover .fn-update {display:block; opacity: .2;}
+.li:hover .fn-update:hover {opacity: .8;}
 
 .li .edit-button, .li .delete-button, .li .end-button, .li .save-button, .li .url, .li .cancel-button {
     opacity:.55; flex-shrink:0; cursor:pointer; text-indent:-999px; overflow:hidden;
