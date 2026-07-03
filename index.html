@@ -13,7 +13,7 @@
 	<div class="app">
 		<header class="topbar">
 			<div class="topbar-brand">
-				<span class="topbar-logo"></span>
+				<span class="topbar-logo" id="topbar-logo"></span>
 				<span class="topbar-title">PYBC Ops</span>
 			</div>
 			<div class="topbar-sep"></div>
@@ -194,6 +194,13 @@
 						<div class="view-header">
 							<div class="view-title">설정</div>
 							<div class="view-desc">표시 옵션, 테마, 데이터 관리를 설정합니다.</div>
+						</div>
+						<div class="card">
+							<div class="card-title">Title(로고) 내용 입력</div>
+							<div class="card-desc">상단바 로고 영역에 표시할 문구입니다. 비워두면 기본 로고만 표시됩니다.</div>
+							<div class="logo-text-row">
+								<input type="text" id="logo-text-input" placeholder="예: PYBC" maxlength="12">
+							</div>
 						</div>
 						<div class="card">
 							<div class="card-title">표시 행수</div>

@@ -51,6 +51,10 @@ let config, users, masterId, activeUser, fileID, uploadLastDay;
 				initLimitSegmented();
 				renderTeamStatusCard();
 
+				// 상단바 로고 텍스트 적용
+				const logoEl = document.getElementById('topbar-logo');
+				if (logoEl) logoEl.textContent = config.logoText || '';
+
 				// theme css를 적용
 				if (config.theme) {
 					const link = document.createElement('link');
@@ -1738,7 +1742,41 @@ async function initUploadAlert() {
 	});
 }
 
+// 설정 화면의 "Title(로고) 내용 입력": 입력값을 상단바 로고에 바로 반영하고,
+// 타이핑이 잠시 멈추면(디바운스) config.json 에 저장한다.
+async function initLogoTextSetting() {
+	const input = document.getElementById('logo-text-input');
+	if (!input) return;
+	const logoEl = document.getElementById('topbar-logo');
+
+	let cfg = {};
+	try {
+		cfg = await (await fetch('./config.json')).json();
+	} catch (e) {
+		console.error('config load failed:', e);
+	}
+	input.value = cfg.logoText || '';
+
+	let saveTimer = null;
+	input.addEventListener('input', () => {
+		if (logoEl) logoEl.textContent = input.value;
+		clearTimeout(saveTimer);
+		saveTimer = setTimeout(async () => {
+			try {
+				await fetch('/config/logo-text', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ text: input.value }),
+				});
+			} catch (e) {
+				console.error('logo text update failed:', e);
+			}
+		}, 400);
+	});
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 	initViewRouting();
 	initUploadAlert();
+	initLogoTextSetting();
 });

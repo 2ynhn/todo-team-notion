@@ -338,6 +338,23 @@ app.post('/config/alert', (req, res) => {
 	}
 });
 
+// config.json 의 상단바 로고 텍스트(logoText) 값 변경
+app.post('/config/logo-text', (req, res) => {
+	const text = typeof req.body.text === 'string' ? req.body.text.trim().slice(0, 12) : '';
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.logoText = text;
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.logoText = text; // 메모리상 config 동기화
+		res.json({ message: 'logo text updated', text });
+	} catch (e) {
+		console.error('Error updating logo text:', e);
+		res.status(500).json({ error: 'failed to update logo text', details: e.message });
+	}
+});
+
 // 커밋 로그 실행 요청을 처리하는 API 엔드포인트
 app.get('/run-commit-log', (req, res) => {
 	// 실제 셸 스크립트가 있는 경로를 지정합니다.

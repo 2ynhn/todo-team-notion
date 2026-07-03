@@ -9,6 +9,7 @@
     "uploadLastDay": 0,
     "uploadAlertEnabled": true,
     "uploadAlertTime": "17:04",
+    "logoText": "",
     "users": [
         {
             "id": "1111",
