@@ -105,6 +105,24 @@ a {text-decoration:none; color:var(--color);}
 .btn-upload:hover {filter:brightness(1.08);}
 .btn-upload #last-upload-info {font-weight:400; color:rgba(255,255,255,.8); font-size:11px;}
 
+.upload-alert-zone {display:flex; align-items:center; min-width:0; overflow:hidden;}
+.upload-alert-banner {
+    display:flex; align-items:center; gap:8px; max-width:320px;
+    padding:6px 8px 6px 12px; border-radius:7px;
+    background:color-mix(in srgb, var(--warning) 22%, var(--chrome-bg));
+    border:1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+    color:#fff; font-size:12px; font-weight:600;
+    animation:upload-alert-in .18s ease;
+}
+.upload-alert-banner .upload-alert-text {min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.upload-alert-banner .upload-alert-close {
+    flex:0 0 auto; width:18px; height:18px; border-radius:5px; display:flex; align-items:center;
+    justify-content:center; color:rgba(255,255,255,.75); font-size:14px; line-height:1; cursor:pointer;
+    transition:background-color var(--ease), color var(--ease);
+}
+.upload-alert-banner .upload-alert-close:hover {background:rgba(255,255,255,.15); color:#fff;}
+@keyframes upload-alert-in {from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);}}
+
 .topbar-right {margin-left:auto; display:flex; align-items:center; gap:14px;}
 .topbar-search {
     width:220px; height:32px; border-radius:7px; background:rgba(255,255,255,.08); border:0;

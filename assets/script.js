@@ -1752,8 +1752,26 @@ function checkTime() {
 	}
 	if (!uploadAlertFiredThisMinute) {
 		uploadAlertFiredThisMinute = true;
-		alert(`지정한 시간 ${uploadAlertTime} 입니다!`);
+		showUploadAlertBanner(`지정한 시간 ${uploadAlertTime} 입니다!`);
 	}
+}
+
+// 시스템 alert() 대신 #upload-button과 .topbar-right 사이의 zone에 닫을 수 있는
+// 배너를 innerHTML로 띄운다. 화면을 막지 않고, 닫기 전까지 그대로 떠 있는다.
+function showUploadAlertBanner(message) {
+	const zone = document.getElementById('upload-alert-zone');
+	if (!zone) return;
+	zone.innerHTML = `
+		<div class="upload-alert-banner">
+			<span class="upload-alert-text">${message}</span>
+			<button type="button" class="upload-alert-close" title="닫기" onclick="closeUploadAlertBanner()">×</button>
+		</div>
+	`;
+}
+
+function closeUploadAlertBanner() {
+	const zone = document.getElementById('upload-alert-zone');
+	if (zone) zone.innerHTML = '';
 }
 
 function startUploadAlertTimer() {
