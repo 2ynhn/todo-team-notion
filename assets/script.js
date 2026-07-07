@@ -1738,23 +1738,6 @@ function mMonthInit(obj) {
 
 let uploadAlertTimer = null;
 let uploadAlertTime = null;
-// checkTime()이 1초마다 도는 동안, 지정 시각과 같은 분(예: 17:04:00~17:04:59)에는
-// 60번 모두 조건이 참이 되어 alert()가 계속 다시 뜨던 문제 방지용 1회성 플래그.
-// 분이 지나가면 다시 false로 풀어줘서 같은 시각이 다음날 또 와도 정상 동작한다.
-let uploadAlertFiredThisMinute = false;
-
-function checkTime() {
-	const now = new Date();
-	const currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-	if (currentTime !== uploadAlertTime) {
-		uploadAlertFiredThisMinute = false;
-		return;
-	}
-	if (!uploadAlertFiredThisMinute) {
-		uploadAlertFiredThisMinute = true;
-		showUploadAlertBanner(`지정한 시간 ${uploadAlertTime} 입니다!`);
-	}
-}
 
 // 시스템 alert() 대신 #upload-button과 .topbar-right 사이의 zone에 닫을 수 있는
 // 배너를 innerHTML로 띄운다. 화면을 막지 않고, 닫기 전까지 그대로 떠 있는다.
@@ -1774,17 +1757,29 @@ function closeUploadAlertBanner() {
 	if (zone) zone.innerHTML = '';
 }
 
+// 1초마다 계속 시각을 검사하던 setInterval을 없애고, 지정 시각까지 남은 시간을
+// 계산해 딱 한 번만 울리는 setTimeout으로 바꿨다. 배너를 닫아도 반복해서 다시
+// 뜨는 문제가 없다. 오늘 그 시각이 이미 지났으면 아무것도 예약하지 않는다
+// (시간을 다시 설정하거나, 다음날 새로 열면 그때 기준으로 다시 예약된다).
 function startUploadAlertTimer() {
 	stopUploadAlertTimer();
-	uploadAlertFiredThisMinute = false;
-	if (uploadAlertTime) {
-		uploadAlertTimer = setInterval(checkTime, 1000);
-	}
+	if (!uploadAlertTime) return;
+
+	const [hour, minute] = uploadAlertTime.split(':').map(Number);
+	const now = new Date();
+	const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+	const delay = target.getTime() - now.getTime();
+	if (delay < 0) return;
+
+	uploadAlertTimer = setTimeout(() => {
+		uploadAlertTimer = null;
+		showUploadAlertBanner(`지정한 시간 ${uploadAlertTime} 입니다!`);
+	}, delay);
 }
 
 function stopUploadAlertTimer() {
 	if (uploadAlertTimer) {
-		clearInterval(uploadAlertTimer);
+		clearTimeout(uploadAlertTimer);
 		uploadAlertTimer = null;
 	}
 }
