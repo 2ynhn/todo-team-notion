@@ -159,6 +159,104 @@ app.put('/todos/:userId', async (req, res) => {
   }
 });
 
+// GET /rest-all -> 전체 유저의 'rest'(휴가일) 값을 한 번에 반환 { [userId]: rest }
+// /notion-status와 같은 방식으로 데이터베이스를 한 번만 조회해서 모든 유저 값을 뽑아낸다.
+app.get('/rest-all', async (req, res) => {
+  try {
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    if (!database.data_sources || database.data_sources.length === 0) {
+      return res.json({});
+    }
+    const dataSourceId = database.data_sources[0].id;
+    const query = await notion.dataSources.query({ data_source_id: dataSourceId });
+
+    const result = {};
+    query.results.forEach((page) => {
+      const userId = extractUserIdFromPage(page);
+      if (!userId) return;
+
+      const restProp = page.properties.rest;
+      let rawText = '';
+      if (restProp && Array.isArray(restProp.rich_text)) {
+        rawText = restProp.rich_text.map((rt) => rt.plain_text || rt.text?.content || '').join('');
+      }
+      let rest = [];
+      try {
+        rest = rawText.length > 0 ? JSON.parse(rawText) : [];
+      } catch (e) {
+        console.warn('rest JSON parse error:', e);
+        rest = [];
+      }
+      result[userId] = rest;
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (e) {
+    console.error('[rest-all] failed:', e.message || e);
+    res.status(500).json({ error: 'failed to load rest data', details: e.message || String(e) });
+  }
+});
+
+// PUT /rest/:userId  body: { rest: [ {...} ] }  -> 해당 유저 페이지의 'rest' 속성만 갱신
+app.put('/rest/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const rest = req.body.rest;
+
+  if (!Array.isArray(rest)) {
+    return res.status(400).json({ error: 'rest must be array' });
+  }
+
+  try {
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    if (!database.data_sources || database.data_sources.length === 0) {
+      return res.status(500).json({ error: 'No data sources found in database' });
+    }
+    const dataSourceId = database.data_sources[0].id;
+
+    const query = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: {
+        property: 'user',
+        rich_text: { equals: userId },
+      },
+    });
+
+    if (query.results.length === 0) {
+      return res.status(404).json({ message: 'user row not found' });
+    }
+
+    const pageId = query.results[0].id;
+    const jsonString = JSON.stringify(rest);
+
+    function splitTextIntoChunks(text, chunkSize = 2000) {
+      const chunks = [];
+      for (let i = 0; i < text.length; i += chunkSize) {
+        chunks.push(text.slice(i, i + chunkSize));
+      }
+      return chunks;
+    }
+    const chunks = splitTextIntoChunks(jsonString);
+    const richTextArray = chunks.map((chunk) => ({
+      type: 'text',
+      text: { content: chunk },
+    }));
+
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        rest: {
+          rich_text: richTextArray,
+        },
+      },
+    });
+
+    res.json({ message: 'updated', user: userId });
+  } catch (e) {
+    console.error('[rest] Notion 업데이트 실패:', e.message || e);
+    res.status(500).json({ error: 'failed to update rest', details: e.message || String(e) });
+  }
+});
+
 // 유저별 "마지막 업로드 시각"을 data/sync-meta.json에 기록/조회
 const syncMetaPath = path.join(__dirname, 'data', 'sync-meta.json');
 

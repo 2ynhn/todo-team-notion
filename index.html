@@ -50,6 +50,10 @@
 					<span class="rail-icon icon-reports"><i></i><i></i><i></i></span>
 					<span class="rail-label">Reports</span>
 				</button>
+				<button type="button" class="rail-item" data-view="rest">
+					<span class="rail-icon icon-rest"><i></i></span>
+					<span class="rail-label">휴가일</span>
+				</button>
 				<button type="button" class="rail-item" data-view="settings">
 					<span class="rail-icon icon-settings"><i></i></span>
 					<span class="rail-label">설정</span>
@@ -186,6 +190,33 @@
 								<div class="hbar-list" id="report-member-mm"></div>
 							</div>
 						</div>
+					</div>
+				</section>
+
+				<!-- ===================== REST(휴가일) ===================== -->
+				<section class="view" id="view-rest" data-view-panel="rest" hidden>
+					<div class="view-header">
+						<div class="view-title">휴가일</div>
+						<div class="view-desc">본인의 휴가를 입력하고, 팀 전체 휴가 사용 현황을 확인합니다.</div>
+					</div>
+
+					<div class="card rest-input-card">
+						<div class="rest-input-head">
+							<div class="card-title">내 휴가일 입력</div>
+							<select id="rest-year-select" class="rest-year-select"></select>
+						</div>
+						<div class="rest-summary" id="rest-summary"></div>
+						<div class="rest-calendar" id="rest-calendar"></div>
+						<div class="rest-legend">
+							<span><i class="rest-swatch rest-swatch-day"></i> 연차</span>
+							<span><i class="rest-swatch rest-swatch-half"></i> 반차</span>
+							<span class="rest-hint">날짜를 클릭하면 연차 → 반차 → 해제 순으로 바뀝니다</span>
+						</div>
+					</div>
+
+					<div class="card rest-chart-card">
+						<div class="card-title">전체 휴가 사용 현황</div>
+						<div id="rest-chart-wrap"></div>
 					</div>
 				</section>
 

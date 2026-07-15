@@ -1089,6 +1089,7 @@ function switchView(view) {
 	if (view === 'team') renderTeamView();
 	if (view === 'sync') renderSyncView();
 	if (view === 'reports') renderReportsView();
+	if (view === 'rest') renderRestView();
 }
 
 /* ---------------------- 상단바 (아바타 / 연동 상태 점 / 검색) ---------------------- */
@@ -1422,6 +1423,392 @@ async function renderReportsView() {
 			</div>
 		`).join('')
 		: '<p class="muted-note">데이터가 없습니다.</p>';
+}
+
+/* =========================================================================
+   휴가일(REST) 뷰
+   Notion의 각 유저 페이지에 'rest'라는 text 속성으로 다음 구조를 저장한다:
+   [{ "2026": { total, start, last?, end?, day: ["6-16", ...], ban: [...] }, "2025": {...} }]
+   - total: 그 해의 총 휴가일 수
+   - start: 그 해 연차가 시작되는 월(1~12). 12개월 주기가 이 달부터 시작한다.
+   - last: 'last-year' 문자열이면 그래프에서 이 항목을 한 해 앞(왼쪽)으로 밀어서 표시
+   - day: 휴가 사용일("월-일"), ban: 반차 사용일. day와 ban에 같은 날짜가 있으면
+     그 날은 반차(0.5일)를 썼다는 의미(사용일수 = day.length - ban.length*0.5)
+   ========================================================================= */
+
+let restAllUsers = null; // { [userId]: rest 배열 } 캐시
+let restLoadedOnce = false;
+let restMine = null; // 로그인(=master) 유저의 정규화된 rest 배열
+let restSelectedYearKey = null;
+let restCalendarCursor = null; // { year, month } - 달력에 현재 보여줄 달
+let restSaveTimer = null;
+
+async function fetchRestAll(force) {
+	if (restAllUsers && restLoadedOnce && !force) return restAllUsers;
+	try {
+		const res = await fetch('/rest-all');
+		restAllUsers = res.ok ? await res.json() : {};
+	} catch (e) {
+		console.error('rest-all load failed:', e);
+		restAllUsers = {};
+	}
+	restLoadedOnce = true;
+	return restAllUsers;
+}
+
+// Notion에는 배열 안에 객체 하나([{ "2026": {...}, ... }])로 저장돼 있다.
+function normalizeRestArray(rest) {
+	if (Array.isArray(rest) && rest.length > 0 && rest[0] && typeof rest[0] === 'object') return rest;
+	return [{}];
+}
+
+function restYearKeys(rest) {
+	const obj = normalizeRestArray(rest)[0] || {};
+	return Object.keys(obj).map(Number).filter((n) => !Number.isNaN(n)).sort((a, b) => b - a);
+}
+
+function formatRestNumber(n) {
+	return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+// "월-일" 문자열은 기존 데이터에 "6-16"처럼 패딩 없는 것과 "01-23"처럼 0패딩된 것이
+// 섞여 있어서, 비교할 때는 항상 숫자로 변환해서 맞춰본다.
+function restKeyMatches(str, month, day) {
+	const parts = String(str).split('-').map(Number);
+	return parts[0] === month && parts[1] === day;
+}
+function restArrHas(arr, month, day) {
+	return (arr || []).some((s) => restKeyMatches(s, month, day));
+}
+function restArrRemove(arr, month, day) {
+	return (arr || []).filter((s) => !restKeyMatches(s, month, day));
+}
+function restDateKey(month, day) {
+	return `${month}-${day}`;
+}
+
+// 시작월 기준으로 12개월 주기를 이루는 (월, 그 해로부터의 연도 오프셋) 목록을 만든다.
+// 예: start=6 → 6,7,...,12(오프셋 0) 다음 1,2,...,5(오프셋 1)
+function restCycleMonths(startMonth) {
+	const months = [];
+	for (let m = startMonth; m <= 12; m++) months.push({ month: m, yearOffset: 0 });
+	for (let m = 1; m < startMonth; m++) months.push({ month: m, yearOffset: 1 });
+	return months;
+}
+
+function daysInMonth(year, month) {
+	return new Date(year, month, 0).getDate();
+}
+
+function currentRestEntry() {
+	if (!restMine || restSelectedYearKey == null) return null;
+	return restMine[0][restSelectedYearKey] || null;
+}
+
+async function renderRestView() {
+	const allUsers = await fetchRestAll();
+	restMine = normalizeRestArray(allUsers[masterId] || []);
+	allUsers[masterId] = restMine; // 최초 로드 시 캐시와 연결(이후 저장 때 참조 공유)
+	restAllUsers = allUsers;
+
+	initRestYearSelect();
+	renderRestCalendar();
+	renderRestSummary();
+	renderRestChart(restAllUsers);
+}
+
+function initRestYearSelect() {
+	const select = document.getElementById('rest-year-select');
+	if (!select) return;
+	if (!select.dataset.bound) {
+		select.dataset.bound = '1';
+		select.addEventListener('change', onRestYearChange);
+	}
+	const keys = restYearKeys(restMine);
+	select.innerHTML = keys.map((k) => `<option value="${k}">${k}년</option>`).join('')
+		+ '<option value="__new__">+ 새 연차 등록</option>';
+	if (restSelectedYearKey == null || !keys.includes(restSelectedYearKey)) {
+		restSelectedYearKey = keys.length ? keys[0] : null;
+	}
+	if (restSelectedYearKey != null) select.value = String(restSelectedYearKey);
+}
+
+function onRestYearChange(e) {
+	if (e.target.value === '__new__') {
+		addNewRestYear();
+		return;
+	}
+	restSelectedYearKey = Number(e.target.value);
+	restCalendarCursor = null;
+	renderRestCalendar();
+	renderRestSummary();
+}
+
+function addNewRestYear() {
+	const yearStr = prompt('새로 등록할 연도(예: 2027)를 입력하세요.');
+	if (!yearStr) {
+		initRestYearSelect();
+		return;
+	}
+	const year = parseInt(yearStr, 10);
+	if (!Number.isInteger(year)) {
+		alert('연도는 숫자로 입력해 주세요.');
+		initRestYearSelect();
+		return;
+	}
+	if (restMine[0][year]) {
+		alert('이미 등록된 연도입니다.');
+		restSelectedYearKey = year;
+		initRestYearSelect();
+		renderRestCalendar();
+		renderRestSummary();
+		return;
+	}
+
+	const totalStr = prompt('총 연차 일수를 입력하세요.', '15');
+	const total = parseFloat(totalStr);
+	if (totalStr === null || Number.isNaN(total)) {
+		alert('총 연차 일수를 숫자로 입력해 주세요.');
+		initRestYearSelect();
+		return;
+	}
+
+	const startStr = prompt('연차 시작 월(1~12)을 입력하세요.', '1');
+	const start = parseInt(startStr, 10);
+	if (!Number.isInteger(start) || start < 1 || start > 12) {
+		alert('시작 월은 1~12 사이 숫자로 입력해 주세요.');
+		initRestYearSelect();
+		return;
+	}
+
+	restMine[0][year] = { total, start, day: [], ban: [] };
+	restSelectedYearKey = year;
+	restCalendarCursor = null;
+	initRestYearSelect();
+	renderRestCalendar();
+	renderRestSummary();
+	scheduleSaveRestMine();
+}
+
+function renderRestCalendar() {
+	const wrap = document.getElementById('rest-calendar');
+	if (!wrap) return;
+	const entry = currentRestEntry();
+	if (!entry) {
+		wrap.innerHTML = '<p class="muted-note">등록된 연차가 없습니다. 위에서 "+ 새 연차 등록"을 선택해 주세요.</p>';
+		return;
+	}
+	if (!Array.isArray(entry.day)) entry.day = [];
+	if (!Array.isArray(entry.ban)) entry.ban = [];
+
+	const cycle = restCycleMonths(entry.start || 1);
+	const baseYear = restSelectedYearKey;
+
+	const cursorIdx0 = restCalendarCursor
+		? cycle.findIndex((c) => baseYear + c.yearOffset === restCalendarCursor.year && c.month === restCalendarCursor.month)
+		: -1;
+	if (cursorIdx0 === -1) {
+		const today = new Date();
+		const todayIdx = cycle.findIndex((c) => baseYear + c.yearOffset === today.getFullYear() && c.month === today.getMonth() + 1);
+		const idx = todayIdx > -1 ? todayIdx : 0;
+		restCalendarCursor = { year: baseYear + cycle[idx].yearOffset, month: cycle[idx].month };
+	}
+	const cursorIdx = cycle.findIndex((c) => baseYear + c.yearOffset === restCalendarCursor.year && c.month === restCalendarCursor.month);
+
+	const dow = ['일', '월', '화', '수', '목', '금', '토'];
+	const y = restCalendarCursor.year;
+	const m = restCalendarCursor.month;
+	const firstWeekday = new Date(y, m - 1, 1).getDay();
+	const totalDays = daysInMonth(y, m);
+	const today = new Date();
+
+	let cells = '';
+	for (let i = 0; i < firstWeekday; i++) cells += '<div class="rest-day-cell out-of-range"></div>';
+	for (let d = 1; d <= totalDays; d++) {
+		const isDay = restArrHas(entry.day, m, d);
+		const isBan = restArrHas(entry.ban, m, d);
+		const isToday = y === today.getFullYear() && m === today.getMonth() + 1 && d === today.getDate();
+		const cls = ['rest-day-cell'];
+		if (isDay && isBan) cls.push('is-half');
+		else if (isDay) cls.push('is-day');
+		if (isToday) cls.push('is-today');
+		cells += `<div class="${cls.join(' ')}" onclick="toggleRestDay(${m}, ${d})">${d}</div>`;
+	}
+
+	wrap.innerHTML = `
+		<div class="rest-calendar-nav">
+			<button type="button" ${cursorIdx <= 0 ? 'disabled' : ''} onclick="moveRestMonth(-1)">‹</button>
+			<div class="rest-calendar-label">${y}년 ${m}월</div>
+			<button type="button" ${cursorIdx >= cycle.length - 1 ? 'disabled' : ''} onclick="moveRestMonth(1)">›</button>
+		</div>
+		<div class="rest-calendar-grid">
+			${dow.map((d) => `<div class="dow">${d}</div>`).join('')}
+			${cells}
+		</div>
+	`;
+}
+
+function moveRestMonth(delta) {
+	const entry = currentRestEntry();
+	if (!entry || !restCalendarCursor) return;
+	const cycle = restCycleMonths(entry.start || 1);
+	const baseYear = restSelectedYearKey;
+	const idx = cycle.findIndex((c) => baseYear + c.yearOffset === restCalendarCursor.year && c.month === restCalendarCursor.month);
+	const nextIdx = idx + delta;
+	if (nextIdx < 0 || nextIdx >= cycle.length) return;
+	restCalendarCursor = { year: baseYear + cycle[nextIdx].yearOffset, month: cycle[nextIdx].month };
+	renderRestCalendar();
+}
+
+// 클릭할 때마다 "미사용 → 연차 → 반차 → 미사용" 순서로 순환한다.
+function toggleRestDay(month, day) {
+	const entry = currentRestEntry();
+	if (!entry) return;
+	if (!Array.isArray(entry.day)) entry.day = [];
+	if (!Array.isArray(entry.ban)) entry.ban = [];
+
+	const inDay = restArrHas(entry.day, month, day);
+	const inBan = restArrHas(entry.ban, month, day);
+
+	if (!inDay) {
+		entry.day.push(restDateKey(month, day));
+	} else if (!inBan) {
+		entry.ban.push(restDateKey(month, day));
+	} else {
+		entry.day = restArrRemove(entry.day, month, day);
+		entry.ban = restArrRemove(entry.ban, month, day);
+	}
+
+	renderRestCalendar();
+	renderRestSummary();
+	scheduleSaveRestMine();
+}
+
+function renderRestSummary() {
+	const wrap = document.getElementById('rest-summary');
+	if (!wrap) return;
+	const entry = currentRestEntry();
+	if (!entry) {
+		wrap.innerHTML = '';
+		return;
+	}
+	const dayLen = (entry.day || []).length;
+	const banLen = (entry.ban || []).length;
+	const used = dayLen - banLen * 0.5;
+	const total = entry.total || 0;
+	wrap.innerHTML = `
+		<div>총 <strong>${formatRestNumber(total)}</strong>일</div>
+		<div>사용 <strong>${formatRestNumber(used)}</strong>일</div>
+		<div>잔여 <strong>${formatRestNumber(total - used)}</strong>일</div>
+	`;
+}
+
+function scheduleSaveRestMine() {
+	clearTimeout(restSaveTimer);
+	restSaveTimer = setTimeout(saveRestMine, 600);
+}
+
+async function saveRestMine() {
+	if (!masterId || !restMine) return;
+	try {
+		await fetch(`/rest/${encodeURIComponent(masterId)}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ rest: restMine }),
+		});
+		if (restAllUsers) {
+			restAllUsers[masterId] = restMine;
+			renderRestChart(restAllUsers);
+		}
+	} catch (e) {
+		console.error('rest 저장 실패:', e);
+	}
+}
+
+// 하단 "전체 휴가 사용 현황": 연도별로 묶어서 팀원별 바 차트를 그린다.
+function renderRestChart(allUsers) {
+	const wrap = document.getElementById('rest-chart-wrap');
+	if (!wrap || !allUsers) return;
+
+	const activeUsers = (users || []).filter((u) => u.active);
+	const yearKeySet = new Set();
+	activeUsers.forEach((u) => {
+		restYearKeys(allUsers[u.id] || []).forEach((k) => yearKeySet.add(k));
+	});
+	const sortedYears = [...yearKeySet].sort((a, b) => b - a);
+
+	if (sortedYears.length === 0) {
+		wrap.innerHTML = '<p class="muted-note">등록된 휴가 데이터가 없습니다.</p>';
+		return;
+	}
+
+	const unit = 28; // 1개월당 px
+	wrap.innerHTML = sortedYears.map((yearKey) => {
+		const rows = activeUsers.map((u) => {
+			const restArr = normalizeRestArray(allUsers[u.id] || []);
+			const entry = restArr[0][yearKey];
+			return entry ? renderRestPersonRow(u, entry, yearKey, unit) : '';
+		}).join('');
+
+		return `
+			<div class="rest-year-section">
+				<p class="year">${yearKey} 휴가사용일</p>
+				<div class="rest-timeline">${rows || '<p class="muted-note">이 연도에 등록된 팀원이 없습니다.</p>'}</div>
+			</div>
+		`;
+	}).join('');
+}
+
+function renderRestPersonRow(user, entry, yearKey, unit) {
+	const total = entry.total || 0;
+	const start = entry.start || 1;
+	const end = entry.end;
+	const dayArr = entry.day || [];
+	const banArr = entry.ban || [];
+	const useLength = dayArr.length - banArr.length * 0.5;
+	const percent = total > 0 ? Math.min(100, (useLength / total) * 100) : 0;
+	const isLast = entry.last === 'last-year';
+	const labelYear = isLast ? yearKey - 1 : yearKey;
+
+	// 레인은 [지난해 구간(0~12unit) | 이 연도 구간(12~24unit)] 두 구간으로 이뤄지고,
+	// 기본 바는 "이 연도" 구간에 놓인 뒤, last-year 항목만 CSS transform으로 지난해
+	// 구간까지 통째로 왼쪽으로 밀려 보인다.
+	const laneOffset = unit * 12;
+	let barWidth = 12 * unit;
+	if (end) {
+		barWidth = (end > start ? (end - start) : (12 + end - start)) * unit;
+	}
+	const moveLeft = laneOffset + unit * (start - 1);
+
+	let endMonthLabel = start - 1 === 0 ? `${labelYear}-12월 까지` : `${labelYear + 1}-${start - 1}월 까지`;
+	if (end) endMonthLabel = `${labelYear}-${end}월 까지`;
+
+	const finished = percent >= 100;
+	const rowId = `rest-detail-${user.id}-${yearKey}`;
+
+	return `
+		<div class="rest-person">
+			<p class="name"><strong>${user.name}</strong> : ${formatRestNumber(useLength)} 사용 (총 ${formatRestNumber(total)}일, 시작월: ${start}월)</p>
+			<div class="rest-track">
+				<div class="rest-track-lane">
+					<div class="rest-track-lines"><i style="left:0"></i><i style="left:${unit * 12}px"></i><i style="left:${unit * 24}px"></i></div>
+					<div class="rest-bar${finished ? ' finished' : ''}${isLast ? ' rest-bar-last' : ''}" style="width:${barWidth}px; left:${moveLeft}px; --transLeft:-${laneOffset}px;">
+						<span class="rest-bar-fill" style="width:${percent}%" onclick="toggleRestDetail('${rowId}')">${formatRestNumber(useLength)}일 ▾</span>
+					</div>
+				</div>
+				<div class="rest-bar-end-label">${endMonthLabel}</div>
+			</div>
+			<div class="rest-detail" id="${rowId}">
+				<p>사용일: ${dayArr.join(', ') || '-'}</p>
+				<p>반차: ${banArr.join(', ') || '-'}</p>
+			</div>
+		</div>
+	`;
+}
+
+function toggleRestDetail(id) {
+	const el = document.getElementById(id);
+	if (el) el.classList.toggle('open');
 }
 
 /* ---------------------- 설정: 표시 행수 세그먼트 컨트롤 ---------------------- */

@@ -174,6 +174,13 @@ a {text-decoration:none; color:var(--color);}
 .rail-item.active .icon-settings {border-color:var(--chrome-icon-b);}
 .rail-item.active .icon-settings i {background:var(--chrome-icon);}
 
+.icon-rest {width:20px; height:19px; border-radius:4px; border:1.5px solid rgba(255,255,255,.5); position:relative; margin-top:3px;}
+.icon-rest::before {content:''; position:absolute; top:-4px; left:4px; width:2px; height:5px; background:rgba(255,255,255,.5); border-radius:1px; box-shadow:9px 0 0 rgba(255,255,255,.5);}
+.icon-rest i {position:absolute; width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,.55); bottom:3px; right:3px;}
+.rail-item.active .icon-rest {border-color:var(--chrome-icon-b);}
+.rail-item.active .icon-rest::before {background:var(--chrome-icon-b); box-shadow:9px 0 0 var(--chrome-icon-b);}
+.rail-item.active .icon-rest i {background:var(--chrome-icon);}
+
 /* ---- TASK view ---------------------------------------------------------- */
 #view-task {gap:14px;}
 .tabs {display:flex; gap:4px;}
@@ -430,6 +437,60 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
 .chip-cloud .chip.chip-top {background:#eef2ff; color:var(--point-2); font-weight:600;}
 .reports-member-card .hbar-row .hbar-track {height:8px; background:var(--background-2);}
 .reports-member-card .hbar-row .hbar-value {font-size:11px; color:var(--color-2); font-weight:400;}
+
+/* ---- REST(휴가일) view ----------------------------------------------------- */
+.rest-input-card {display:flex; flex-direction:column; gap:14px;}
+.rest-input-head {display:flex; align-items:center; justify-content:space-between;}
+.rest-year-select {height:30px; padding:0 8px; border-radius:var(--radius-sm); background:var(--background); border:1px solid var(--line); font-size:12.5px; color:var(--color);}
+
+.rest-summary {display:flex; gap:20px; font-size:12.5px; color:var(--color-2);}
+.rest-summary strong {color:var(--color); font-size:14px; margin:0 2px;}
+
+.rest-calendar {display:flex; flex-direction:column; gap:10px;}
+.rest-calendar-nav {display:flex; align-items:center; justify-content:center; gap:14px;}
+.rest-calendar-nav button {width:26px; height:26px; border-radius:6px; background:var(--background-2); color:var(--color); font-size:13px; transition:background-color var(--ease);}
+.rest-calendar-nav button:hover {background:var(--line-2);}
+.rest-calendar-nav button:disabled {opacity:.35; cursor:not-allowed;}
+.rest-calendar-label {font-size:13px; font-weight:700; color:var(--color); min-width:110px; text-align:center;}
+
+.rest-calendar-grid {display:grid; grid-template-columns:repeat(7,1fr); gap:4px; max-width:360px; margin:0 auto;}
+.rest-calendar-grid .dow {text-align:center; font-size:10.5px; color:var(--color-2); font-weight:700; padding-bottom:2px;}
+.rest-day-cell {aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:7px; font-size:12px; color:var(--color); cursor:pointer; background:var(--background); transition:all var(--ease); position:relative;}
+.rest-day-cell:hover {background:var(--hover);}
+.rest-day-cell.out-of-range {visibility:hidden; cursor:default;}
+.rest-day-cell.is-today {box-shadow:inset 0 0 0 1px var(--point-2);}
+.rest-day-cell.is-day {background:var(--point-2); color:#fff; font-weight:700;}
+.rest-day-cell.is-half {background:var(--point-2); color:#fff; font-weight:700;}
+.rest-day-cell.is-half::after {content:''; position:absolute; right:2px; bottom:2px; width:5px; height:5px; border-radius:50%; background:var(--warning); box-shadow:0 0 0 1.5px var(--background-3);}
+
+.rest-legend {display:flex; align-items:center; gap:16px; font-size:11.5px; color:var(--color-2);}
+.rest-swatch {display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; position:relative;}
+.rest-swatch-day {background:var(--point-2);}
+.rest-swatch-half {background:var(--point-2);}
+.rest-swatch-half::after {content:''; position:absolute; right:-1px; bottom:-1px; width:5px; height:5px; border-radius:50%; background:var(--warning); box-shadow:0 0 0 1.5px var(--background-3);}
+.rest-hint {margin-left:auto; opacity:.8;}
+
+.rest-chart-card {display:flex; flex-direction:column;}
+.rest-year-section + .rest-year-section {margin-top:20px; padding-top:20px; border-top:1px solid var(--line);}
+.rest-year-section .year {font-size:12.5px; font-weight:700; color:var(--color); margin-bottom:14px;}
+
+.rest-timeline {overflow-x:auto; padding-bottom:4px;}
+.rest-person {position:relative; margin-bottom:20px; min-width:760px;}
+.rest-person:last-child {margin-bottom:0;}
+.rest-person .name {font-size:12px; color:var(--color-2); margin-bottom:6px;}
+.rest-person .name strong {color:var(--color); font-weight:700;}
+.rest-track {position:relative; height:24px; display:flex; align-items:center; gap:10px;}
+.rest-track-lane {position:relative; width:672px; height:22px; flex:0 0 auto;}
+.rest-track-lines {position:absolute; inset:0; pointer-events:none;}
+.rest-track-lines i {position:absolute; top:0; bottom:0; width:1px; background:var(--line-2);}
+.rest-bar {position:absolute; top:0; height:22px; border-radius:6px; background:color-mix(in srgb, var(--point-2) 14%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--point-2) 35%, transparent); box-sizing:border-box;}
+.rest-bar.finished {background:color-mix(in srgb, var(--success) 14%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--success) 35%, transparent);}
+.rest-bar.rest-bar-last {transform:translateX(var(--transLeft));}
+.rest-bar-fill {display:flex; align-items:center; justify-content:flex-end; height:100%; min-width:30px; padding-right:6px; box-sizing:border-box; border-radius:6px 0 0 6px; background:var(--point-2); color:#fff; font-size:11px; font-weight:700; white-space:nowrap; cursor:pointer;}
+.rest-bar.finished .rest-bar-fill {background:var(--success);}
+.rest-bar-end-label {flex:0 0 auto; font-size:10.5px; color:var(--color-2); white-space:nowrap;}
+.rest-detail {display:none; margin-top:8px; padding:8px 10px; background:var(--background); border-radius:var(--radius-sm); font-size:11.5px; color:var(--color-2); line-height:1.6; min-width:760px;}
+.rest-detail.open {display:block;}
 
 /* ---- SETTINGS view ------------------------------------------------------- */
 .settings-wrap {max-width:640px; display:flex; flex-direction:column; gap:18px; margin:0 auto; width:100%;}
