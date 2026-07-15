@@ -1772,36 +1772,34 @@ function renderRestPersonRow(user, entry, yearKey, unit) {
 	const banArr = entry.ban || [];
 	const useLength = dayArr.length - banArr.length * 0.5;
 	const percent = total > 0 ? Math.min(100, (useLength / total) * 100) : 0;
-	const isLast = entry.last === 'last-year';
-	const labelYear = isLast ? yearKey - 1 : yearKey;
 
-	// 레인은 [지난해 구간(0~12unit) | 이 연도 구간(12~24unit)] 두 구간으로 이뤄지고,
-	// 기본 바는 "이 연도" 구간에 놓인 뒤, last-year 항목만 CSS transform으로 지난해
-	// 구간까지 통째로 왼쪽으로 밀려 보인다.
-	const laneOffset = unit * 12;
+	// 단일 12개월 레인. (last-year로 지난해 구간까지 밀어서 보여주던 예전 방식은
+	// json의 'last' 값을 더 이상 쓰지 않으므로 제거했다.)
 	let barWidth = 12 * unit;
 	if (end) {
 		barWidth = (end > start ? (end - start) : (12 + end - start)) * unit;
 	}
-	const moveLeft = laneOffset + unit * (start - 1);
+	const moveLeft = unit * (start - 1);
 
-	let endMonthLabel = start - 1 === 0 ? `${labelYear}-12월 까지` : `${labelYear + 1}-${start - 1}월 까지`;
-	if (end) endMonthLabel = `${labelYear}-${end}월 까지`;
+	let endMonthLabel = start - 1 === 0 ? `${yearKey}-12월 까지` : `${yearKey + 1}-${start - 1}월 까지`;
+	if (end) endMonthLabel = `${yearKey}-${end}월 까지`;
 
 	const finished = percent >= 100;
 	const rowId = `rest-detail-${user.id}-${yearKey}`;
 
 	return `
 		<div class="rest-person">
-			<p class="name"><strong>${user.name}</strong> : ${formatRestNumber(useLength)} 사용 (총 ${formatRestNumber(total)}일, 시작월: ${start}월)</p>
-			<div class="rest-track">
-				<div class="rest-track-lane">
-					<div class="rest-track-lines"><i style="left:0"></i><i style="left:${unit * 12}px"></i><i style="left:${unit * 24}px"></i></div>
-					<div class="rest-bar${finished ? ' finished' : ''}${isLast ? ' rest-bar-last' : ''}" style="width:${barWidth}px; left:${moveLeft}px; --transLeft:-${laneOffset}px;">
-						<span class="rest-bar-fill" style="width:${percent}%" onclick="toggleRestDetail('${rowId}')">${formatRestNumber(useLength)}일 ▾</span>
+			<div class="rest-person-row">
+				<p class="name"><strong>${user.name}</strong> : ${formatRestNumber(useLength)} 사용 (총 ${formatRestNumber(total)}일, 시작월: ${start}월)</p>
+				<div class="rest-track">
+					<div class="rest-track-lane">
+						<div class="rest-track-lines"><i style="left:0"></i></div>
+						<div class="rest-bar${finished ? ' finished' : ''}" style="width:${barWidth}px; left:${moveLeft}px;">
+							<span class="rest-bar-fill" style="width:${percent}%" onclick="toggleRestDetail('${rowId}')">${formatRestNumber(useLength)}일 ▾</span>
+						</div>
 					</div>
+					<div class="rest-bar-end-label">${endMonthLabel}</div>
 				</div>
-				<div class="rest-bar-end-label">${endMonthLabel}</div>
 			</div>
 			<div class="rest-detail" id="${rowId}">
 				<p>사용일: ${dayArr.join(', ') || '-'}</p>
