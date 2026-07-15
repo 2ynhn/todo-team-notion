@@ -1456,9 +1456,12 @@ async function fetchRestAll(force) {
 	return restAllUsers;
 }
 
-// Notion에는 배열 안에 객체 하나([{ "2026": {...}, ... }])로 저장돼 있다.
+// Notion에는 배열 안에 객체 하나([{ "2026": {...}, ... }])로 저장돼 있어야 하지만,
+// 사람이 Notion에서 직접 입력하다 보면 바깥 배열([ ])을 빼먹고 객체({ })만
+// 저장하는 경우도 있어서 그 형태도 같이 받아준다.
 function normalizeRestArray(rest) {
 	if (Array.isArray(rest) && rest.length > 0 && rest[0] && typeof rest[0] === 'object') return rest;
+	if (rest && typeof rest === 'object' && !Array.isArray(rest)) return [rest];
 	return [{}];
 }
 
@@ -1519,14 +1522,21 @@ async function renderRestView() {
 
 function initRestYearSelect() {
 	const select = document.getElementById('rest-year-select');
+	const addBtn = document.getElementById('rest-add-year-btn');
 	if (!select) return;
 	if (!select.dataset.bound) {
 		select.dataset.bound = '1';
 		select.addEventListener('change', onRestYearChange);
 	}
+	// "+ 새 연차 등록"은 select의 옵션이 아니라 별도 버튼이다. 옵션으로 두면 등록된
+	// 연도가 하나도 없을 때 그 옵션 하나만 있고 이미 선택된 상태라, 다시 클릭해도
+	// (값이 실제로 바뀌지 않아) change 이벤트가 아예 발생하지 않아 동작하지 않았다.
+	if (addBtn && !addBtn.dataset.bound) {
+		addBtn.dataset.bound = '1';
+		addBtn.addEventListener('click', addNewRestYear);
+	}
 	const keys = restYearKeys(restMine);
-	select.innerHTML = keys.map((k) => `<option value="${k}">${k}년</option>`).join('')
-		+ '<option value="__new__">+ 새 연차 등록</option>';
+	select.innerHTML = keys.map((k) => `<option value="${k}">${k}년</option>`).join('');
 	if (restSelectedYearKey == null || !keys.includes(restSelectedYearKey)) {
 		restSelectedYearKey = keys.length ? keys[0] : null;
 	}
@@ -1534,10 +1544,6 @@ function initRestYearSelect() {
 }
 
 function onRestYearChange(e) {
-	if (e.target.value === '__new__') {
-		addNewRestYear();
-		return;
-	}
 	restSelectedYearKey = Number(e.target.value);
 	restCalendarCursor = null;
 	renderRestCalendar();
@@ -1547,7 +1553,6 @@ function onRestYearChange(e) {
 function addNewRestYear() {
 	const yearStr = prompt('새로 등록할 연도(예: 2027)를 입력하세요.');
 	if (!yearStr) {
-		initRestYearSelect();
 		return;
 	}
 	const year = parseInt(yearStr, 10);
