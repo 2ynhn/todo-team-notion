@@ -1773,15 +1773,21 @@ function renderRestPersonRow(user, entry, yearKey, unit) {
 	const useLength = dayArr.length - banArr.length * 0.5;
 	const percent = total > 0 ? Math.min(100, (useLength / total) * 100) : 0;
 
-	// 단일 12개월 레인, 항상 왼쪽(0)에 붙여서 그린다. (달 위치를 반영해 밀어서
-	// 보여주던 예전 방식은 json의 'last' 값을 더 이상 쓰지 않으므로 제거했다.)
+	const isLast = entry.last === 'last-year';
+	const labelYear = isLast ? yearKey - 1 : yearKey;
+
+	// 레인은 [지난해 구간(0~12unit) | 이 연도 구간(12~24unit)] 두 구간으로 이뤄지고,
+	// 기본 바는 "이 연도" 구간에서 시작월(start)에 따라 좌우로 위치가 달라지며,
+	// last-year 항목만 CSS transform으로 지난해 구간까지 통째로 왼쪽으로 밀려 보인다.
+	const laneOffset = unit * 12;
 	let barWidth = 12 * unit;
 	if (end) {
 		barWidth = (end > start ? (end - start) : (12 + end - start)) * unit;
 	}
+	const moveLeft = laneOffset + unit * (start - 1);
 
-	let endMonthLabel = start - 1 === 0 ? `${yearKey}-12월 까지` : `${yearKey + 1}-${start - 1}월 까지`;
-	if (end) endMonthLabel = `${yearKey}-${end}월 까지`;
+	let endMonthLabel = start - 1 === 0 ? `${labelYear}-12월 까지` : `${labelYear + 1}-${start - 1}월 까지`;
+	if (end) endMonthLabel = `${labelYear}-${end}월 까지`;
 
 	const finished = percent >= 100;
 	const rowId = `rest-detail-${user.id}-${yearKey}`;
@@ -1792,7 +1798,7 @@ function renderRestPersonRow(user, entry, yearKey, unit) {
 				<p class="name"><strong>${user.name}</strong> : <span class="rest-used-highlight">${formatRestNumber(useLength)} 사용</span> (총 ${formatRestNumber(total)}일, 시작월: ${start}월)</p>
 				<div class="rest-track">
 					<div class="rest-track-lane">
-						<div class="rest-bar${finished ? ' finished' : ''}" style="width:${barWidth}px; left:0;">
+						<div class="rest-bar${finished ? ' finished' : ''}${isLast ? ' rest-bar-last' : ''}" style="width:${barWidth}px; left:${moveLeft}px; --transLeft:-${laneOffset}px;">
 							<span class="rest-bar-fill" style="width:${percent}%" onclick="toggleRestDetail('${rowId}')">▾</span>
 						</div>
 					</div>
