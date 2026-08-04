@@ -456,6 +456,10 @@ function rolloverTodo(id) {
 		return;
 	}
 
+	// 새로 등록할 업무의 노션 주소를 입력받는다. confirm처럼 시스템 창(prompt)이면
+	// 충분하고, 입력하지 않고 확인/취소해도 그냥 빈 값으로 넘어간다.
+	const newUrl = prompt('새로운 노션 주소를 입력하세요');
+
 	// 1) 원본 업무: 완료 처리 + 제목 앞에 "(이월) " 표시 (이미 이월된 건 중복으로 안 붙임)
 	const rolledTitle = editTitle.startsWith('(이월) ') ? editTitle : '(이월) ' + editTitle;
 	const rolledObj = {
@@ -481,7 +485,9 @@ function rolloverTodo(id) {
 		id: generateId(),
 		date: nextDateStr,
 		title: editTitle, // "(이월)" 접두어 없는 원래 제목
+		detail: editDetail, // 기존 항목의 detail을 그대로 이어받는다
 		commit: editCommit,
+		url: newUrl ? newUrl.trim() : '',
 		ended: false,
 	};
 	todos.unshift(removeEmptyKeys(newTodo));
