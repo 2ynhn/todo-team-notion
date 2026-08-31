@@ -213,10 +213,10 @@ a {text-decoration:none; color:var(--color);}
    각자 자기 영역 안에서만 스크롤되게 한다. 다른 뷰는 여전히 .views 전체가 스크롤된다. */
 #view-task {height:100%; overflow:hidden;}
 .task-body {flex:1; display:flex; gap:16px; min-height:0;}
-.task-main {flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; min-height:0;}
+.task-main {flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; min-height:0; overflow-y:auto;}
 .task-list-card {
     --row-cols: 16px 76px 1.6fr 56px 64px 1fr 108px;
-    flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;
+    flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column;
 }
 .task-list-head {display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line);}
 .task-list-title {font-weight:700; font-size:13px; color:var(--color);}
@@ -232,7 +232,7 @@ a {text-decoration:none; color:var(--color);}
 .grid-head > div:nth-child(4), .grid-head > div:nth-child(5) {text-align:center;}
 .grid-head > div:last-child {text-align:right;}
 
-.work-list {flex:1; overflow:auto; font-size:12.5px;}
+.work-list {flex:1; font-size:12.5px;}
 .ul {}
 
 .li {
@@ -612,6 +612,6 @@ button:has( > .loading-in-button), a:has( > .loading-in-button) {position:relati
 }
 
 /* ---- scrollbars ------------------------------------------------------------ */
-.views, .task-side, .work-list, .layer .cont .str, #keywords, #mmCont {scrollbar-width:thin; scrollbar-color:var(--line-2) transparent;}
-.views::-webkit-scrollbar, .work-list::-webkit-scrollbar, .layer .cont .str::-webkit-scrollbar, #keywords::-webkit-scrollbar, #mmCont::-webkit-scrollbar {width:8px;}
-.views::-webkit-scrollbar-thumb, .work-list::-webkit-scrollbar-thumb, .layer .cont .str::-webkit-scrollbar-thumb, #keywords::-webkit-scrollbar-thumb, #mmCont::-webkit-scrollbar-thumb {background-color:var(--line-2); border-radius:8px;}
+.views, .task-main, .task-side, .layer .cont .str, #keywords, #mmCont {scrollbar-width:thin; scrollbar-color:var(--line-2) transparent;}
+.views::-webkit-scrollbar, .task-main::-webkit-scrollbar, .layer .cont .str::-webkit-scrollbar, #keywords::-webkit-scrollbar, #mmCont::-webkit-scrollbar {width:8px;}
+.views::-webkit-scrollbar-thumb, .task-main::-webkit-scrollbar-thumb, .layer .cont .str::-webkit-scrollbar-thumb, #keywords::-webkit-scrollbar-thumb, #mmCont::-webkit-scrollbar-thumb {background-color:var(--line-2); border-radius:8px;}
