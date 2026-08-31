@@ -479,12 +479,17 @@ function rolloverTodo(id) {
 	// "다음 달"이 되고, 12월이어도 연도가 자동으로 넘어간다 (UTC 변환 없이 로컬 값만 사용).
 	const [y, m] = editDate.split('-').map(Number);
 	const nextMonth = new Date(y, m, 1);
-	const nextDateStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+	const nextMonthNum = nextMonth.getMonth() + 1;
+	const nextDateStr = `${nextMonth.getFullYear()}-${String(nextMonthNum).padStart(2, '0')}-01`;
+
+	// 제목에 "{8월}"처럼 중괄호로 감싼 "N월" 표기가 있으면, 새 업무 제목에서는
+	// 다음 달 숫자로 바꿔준다(예: "{8월}" -> "{9월}").
+	const nextTitle = editTitle.replace(/\{(\d{1,2})월\}/g, `{${nextMonthNum}월}`);
 
 	const newTodo = {
 		id: generateId(),
 		date: nextDateStr,
-		title: editTitle, // "(이월)" 접두어 없는 원래 제목
+		title: nextTitle, // "(이월)" 접두어 없는 원래 제목 + "{N월}" 표기는 다음 달로 갱신
 		detail: editDetail, // 기존 항목의 detail을 그대로 이어받는다
 		commit: editCommit,
 		url: newUrl ? newUrl.trim() : '',
