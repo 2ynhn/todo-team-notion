@@ -40,12 +40,12 @@ app.get('/todos/:userId', async (req, res) => {
   const userId = req.params.userId;
   console.log(userId);
 
-  const database = await notion.databases.retrieve({
-    database_id: databaseId,
-  });
-
-  const dataSourceId = database.data_sources[0].id;
   try {
+    const database = await notion.databases.retrieve({
+      database_id: databaseId,
+    });
+
+    const dataSourceId = database.data_sources[0].id;
     const query = await notion.dataSources.query({
       data_source_id: dataSourceId,
       filter: {
@@ -145,10 +145,187 @@ app.put('/todos/:userId', async (req, res) => {
       },
     });
 
+    // 5) 업로드 성공 시각을 서버에 영속 기록 (브라우저 새로고침/재접속해도 유지)
+    const recorded = recordSyncMeta(userId);
+    console.log(`[upload] Notion 업데이트 성공 (user=${userId}), sync-meta 기록 ${recorded ? '성공' : '실패'}`);
+
+    res.json({ message: 'updated', user: userId, lastUploadAt: readSyncMeta()[userId] });
+  } catch (e) {
+    // 실패 원인을 뭉뚱그리지 않고 그대로 내려보낸다 (예: DB/페이지를 못 찾음, 권한 없음 등).
+    // 여기서 실패하면 recordSyncMeta는 호출되지 않으므로 Sync 화면에 "업로드 기록 없음"이
+    // 뜨는 게 정상 동작이다 — 실제로 Notion에 반영된 적이 없다는 뜻이기 때문.
+    console.error('[upload] Notion 업데이트 실패:', e.message || e);
+    res.status(500).json({ error: 'failed to update todos', details: e.message || String(e) });
+  }
+});
+
+// GET /rest-all -> 전체 유저의 'rest'(휴가일) 값을 한 번에 반환 { [userId]: rest }
+// /notion-status와 같은 방식으로 데이터베이스를 한 번만 조회해서 모든 유저 값을 뽑아낸다.
+app.get('/rest-all', async (req, res) => {
+  try {
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    if (!database.data_sources || database.data_sources.length === 0) {
+      return res.json({});
+    }
+    const dataSourceId = database.data_sources[0].id;
+    const query = await notion.dataSources.query({ data_source_id: dataSourceId });
+
+    const result = {};
+    query.results.forEach((page) => {
+      const userId = extractUserIdFromPage(page);
+      if (!userId) return;
+
+      const restProp = page.properties.rest;
+      let rawText = '';
+      if (restProp && Array.isArray(restProp.rich_text)) {
+        rawText = restProp.rich_text.map((rt) => rt.plain_text || rt.text?.content || '').join('');
+      }
+      let rest = [];
+      try {
+        rest = rawText.length > 0 ? JSON.parse(rawText) : [];
+      } catch (e) {
+        console.warn('rest JSON parse error:', e);
+        rest = [];
+      }
+      result[userId] = rest;
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (e) {
+    console.error('[rest-all] failed:', e.message || e);
+    res.status(500).json({ error: 'failed to load rest data', details: e.message || String(e) });
+  }
+});
+
+// PUT /rest/:userId  body: { rest: [ {...} ] }  -> 해당 유저 페이지의 'rest' 속성만 갱신
+app.put('/rest/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const rest = req.body.rest;
+
+  if (!Array.isArray(rest)) {
+    return res.status(400).json({ error: 'rest must be array' });
+  }
+
+  try {
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    if (!database.data_sources || database.data_sources.length === 0) {
+      return res.status(500).json({ error: 'No data sources found in database' });
+    }
+    const dataSourceId = database.data_sources[0].id;
+
+    const query = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      filter: {
+        property: 'user',
+        rich_text: { equals: userId },
+      },
+    });
+
+    if (query.results.length === 0) {
+      return res.status(404).json({ message: 'user row not found' });
+    }
+
+    const pageId = query.results[0].id;
+    const jsonString = JSON.stringify(rest);
+
+    function splitTextIntoChunks(text, chunkSize = 2000) {
+      const chunks = [];
+      for (let i = 0; i < text.length; i += chunkSize) {
+        chunks.push(text.slice(i, i + chunkSize));
+      }
+      return chunks;
+    }
+    const chunks = splitTextIntoChunks(jsonString);
+    const richTextArray = chunks.map((chunk) => ({
+      type: 'text',
+      text: { content: chunk },
+    }));
+
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        rest: {
+          rich_text: richTextArray,
+        },
+      },
+    });
+
     res.json({ message: 'updated', user: userId });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'failed to update todos' });
+    console.error('[rest] Notion 업데이트 실패:', e.message || e);
+    res.status(500).json({ error: 'failed to update rest', details: e.message || String(e) });
+  }
+});
+
+// 유저별 "마지막 업로드 시각"을 data/sync-meta.json에 기록/조회
+const syncMetaPath = path.join(__dirname, 'data', 'sync-meta.json');
+
+function readSyncMeta() {
+  try {
+    return JSON.parse(fs.readFileSync(syncMetaPath, 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+
+function recordSyncMeta(userId) {
+  try {
+    if (!fs.existsSync(path.join(__dirname, 'data'))) {
+      fs.mkdirSync(path.join(__dirname, 'data'));
+    }
+    const meta = readSyncMeta();
+    meta[userId] = new Date().toISOString();
+    fs.writeFileSync(syncMetaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Error recording sync meta:', e);
+    return false;
+  }
+}
+
+// 유저별 마지막 업로드 시각 조회 (Sync 화면에서 사용). 브라우저/중간 프록시가
+// 캐시해서 새로고침해도 갱신 안 되는 상황을 막기 위해 캐시를 명시적으로 끈다.
+app.get('/sync-meta', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(readSyncMeta());
+});
+
+// Notion 페이지의 'user' 속성 값을 읽는다. DB 스키마에 따라 title/rich_text
+// 둘 중 하나일 수 있어(GET에서는 title, PUT에서는 rich_text로 필터링하고 있음) 둘 다 지원한다.
+function extractUserIdFromPage(page) {
+  const prop = page.properties && page.properties.user;
+  if (!prop) return null;
+  if (prop.type === 'title' && prop.title.length) return prop.title[0].plain_text;
+  if (prop.type === 'rich_text' && prop.rich_text.length) return prop.rich_text[0].plain_text;
+  return null;
+}
+
+// 팀원 전체의 Notion 페이지 마지막 수정 시각을 한 번에 조회한다.
+// sync-meta.json(이 서버를 통해 업로드한 기록)은 master가 이 앱으로 업로드했을 때만
+// 남는데, 멤버는 이 앱으로 업로드하는 개념 자체가 없어 항상 "기록 없음"으로 보였다.
+// Notion이 실제로 관리하는 last_edited_time을 쓰면 누가 어떤 경로로 갱신했든
+// (다른 서버 인스턴스, Notion 앱에서 직접 등) 정확한 마지막 수정 시각을 보여줄 수 있다.
+app.get('/notion-status', async (req, res) => {
+  try {
+    const database = await notion.databases.retrieve({ database_id: databaseId });
+    if (!database.data_sources || database.data_sources.length === 0) {
+      return res.json({});
+    }
+    const dataSourceId = database.data_sources[0].id;
+    const query = await notion.dataSources.query({ data_source_id: dataSourceId });
+
+    const result = {};
+    query.results.forEach((page) => {
+      const userId = extractUserIdFromPage(page);
+      if (userId) {
+        result[userId] = page.last_edited_time;
+      }
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (e) {
+    console.error('[notion-status] failed:', e.message || e);
+    res.status(500).json({ error: 'failed to load notion status', details: e.message || String(e) });
   }
 });
 
@@ -210,6 +387,69 @@ app.post('/config/theme', (req, res) => {
 	} catch (e) {
 		console.error('Error updating theme:', e);
 		res.status(500).json({ error: 'failed to update theme', details: e.message });
+	}
+});
+
+// config.json 의 limit 값 변경 (설정 화면의 "표시 행수")
+app.post('/config/limit', (req, res) => {
+	const raw = req.body.limit;
+	const limit = raw === 'all' ? 'all' : parseInt(raw, 10);
+	const isValid = limit === 'all' || (Number.isInteger(limit) && limit > 0);
+	if (!isValid) {
+		return res.status(400).json({ error: 'invalid limit', limit: raw });
+	}
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.limit = limit === 'all' ? 0 : limit;
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.limit = cfg.limit;
+		res.json({ message: 'limit updated', limit: cfg.limit });
+	} catch (e) {
+		console.error('Error updating limit:', e);
+		res.status(500).json({ error: 'failed to update limit', details: e.message });
+	}
+});
+
+// config.json 의 업로드 알림(uploadAlertEnabled/uploadAlertTime) 값 변경
+app.post('/config/alert', (req, res) => {
+	const enabled = !!req.body.enabled;
+	const time = req.body.time;
+	const isValidTime = typeof time === 'string' && /^([01]\d|2[0-3]):([0-5]\d)$/.test(time);
+	if (!isValidTime) {
+		return res.status(400).json({ error: 'invalid time', time });
+	}
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.uploadAlertEnabled = enabled;
+		cfg.uploadAlertTime = time;
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.uploadAlertEnabled = enabled;
+		config.uploadAlertTime = time;
+		res.json({ message: 'alert setting updated', enabled, time });
+	} catch (e) {
+		console.error('Error updating alert setting:', e);
+		res.status(500).json({ error: 'failed to update alert setting', details: e.message });
+	}
+});
+
+// config.json 의 상단바 로고 텍스트(logoText) 값 변경
+app.post('/config/logo-text', (req, res) => {
+	const text = typeof req.body.text === 'string' ? req.body.text.trim().slice(0, 12) : '';
+
+	try {
+		const cfgPath = path.join(__dirname, 'config.json');
+		const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+		cfg.logoText = text;
+		fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 4) + '\n', 'utf8');
+		config.logoText = text; // 메모리상 config 동기화
+		res.json({ message: 'logo text updated', text });
+	} catch (e) {
+		console.error('Error updating logo text:', e);
+		res.status(500).json({ error: 'failed to update logo text', details: e.message });
 	}
 });
 
