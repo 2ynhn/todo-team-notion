@@ -1026,6 +1026,13 @@ function currentMonthKey() {
 	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+// offset=0 -> 이번 달, -1 -> 지난 달, +1 -> 다음 달 식의 "YYYY-MM" 키
+function monthKeyFromOffset(offset) {
+	const now = new Date();
+	const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
 function monthKeyOf(dateStr) {
 	const d = new Date(dateStr);
 	if (isNaN(d)) return null;
@@ -1350,6 +1357,9 @@ async function renderSyncView() {
 }
 
 /* ---------------------- Reports 뷰 ---------------------- */
+let reportMemberMonthOffset = 0; // 0=이번 달, 음수=이전 달들
+let reportMemberMMMap = null; // 이전/다음 버튼 클릭 시 재조회 없이 다시 그리기 위한 캐시
+
 async function renderReportsView() {
 	const countChartEl = document.getElementById('report-count-chart');
 	const mmTrendEl = document.getElementById('report-mm-trend');
@@ -1418,11 +1428,43 @@ async function renderReportsView() {
 		? sortedKeywords.map(([k, c], i) => `<span class="chip${i === 0 ? ' chip-top' : ''}">${k} · ${c}</span>`).join('')
 		: '<p class="muted-note">키워드가 없습니다.</p>';
 
-	// 팀원별 M/M (이번 달)
-	const monthKey = currentMonthKey();
+	// 팀원별 M/M: 이전/다음 달 버튼으로 다른 달도 확인할 수 있게 offset 기반으로 그린다.
+	reportMemberMMMap = map;
+	reportMemberMonthOffset = 0;
+	initReportMemberMonthNav();
+	renderReportMemberMM();
+}
+
+function initReportMemberMonthNav() {
+	const prevBtn = document.getElementById('report-member-mm-prev');
+	const nextBtn = document.getElementById('report-member-mm-next');
+	if (!prevBtn || !nextBtn || prevBtn.dataset.bound) return;
+	prevBtn.dataset.bound = '1';
+	nextBtn.dataset.bound = '1';
+	prevBtn.addEventListener('click', () => {
+		reportMemberMonthOffset -= 1;
+		renderReportMemberMM();
+	});
+	nextBtn.addEventListener('click', () => {
+		if (reportMemberMonthOffset >= 0) return;
+		reportMemberMonthOffset += 1;
+		renderReportMemberMM();
+	});
+}
+
+function renderReportMemberMM() {
+	const memberMMEl = document.getElementById('report-member-mm');
+	const labelEl = document.getElementById('report-member-mm-label');
+	const nextBtn = document.getElementById('report-member-mm-next');
+	if (!memberMMEl || !reportMemberMMMap) return;
+
+	const monthKey = monthKeyFromOffset(reportMemberMonthOffset);
+	if (labelEl) labelEl.textContent = reportMemberMonthOffset === 0 ? '이번 달' : formatMonthLabel(monthKey);
+	if (nextBtn) nextBtn.disabled = reportMemberMonthOffset >= 0;
+
 	const perUser = (users || []).filter((u) => u.active).map((u) => ({
 		user: u,
-		mm: sumMonthValue(map[u.id] || [], monthKey),
+		mm: sumMonthValue(reportMemberMMMap[u.id] || [], monthKey),
 	})).sort((a, b) => b.mm - a.mm);
 	const maxUserMM = Math.max(0.01, ...perUser.map((p) => p.mm));
 	memberMMEl.innerHTML = perUser.length

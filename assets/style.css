@@ -209,6 +209,9 @@ a {text-decoration:none; color:var(--color);}
 #Ysubmit {padding:0 16px; height:30px; border-radius:7px; background:var(--point-2); color:#fff; font-size:12px; font-weight:700; transition:filter var(--ease);}
 #Ysubmit:hover {filter:brightness(1.06);}
 
+/* Task 뷰만 높이를 뷰포트에 고정하고(overflow:hidden), .task-main과 .task-side가
+   각자 자기 영역 안에서만 스크롤되게 한다. 다른 뷰는 여전히 .views 전체가 스크롤된다. */
+#view-task {height:100%; overflow:hidden;}
 .task-body {flex:1; display:flex; gap:16px; min-height:0;}
 .task-main {flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; min-height:0;}
 .task-list-card {
@@ -437,6 +440,13 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
 .chip-cloud .chip.chip-top {background:#eef2ff; color:var(--point-2); font-weight:600;}
 .reports-member-card .hbar-row .hbar-track {height:8px; background:var(--background-2);}
 .reports-member-card .hbar-row .hbar-value {font-size:11px; color:var(--color-2); font-weight:400;}
+.reports-member-head {display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.reports-member-head .card-title {margin-bottom:0;}
+.month-nav {display:flex; align-items:center; gap:6px;}
+.month-nav button {width:20px; height:20px; border-radius:6px; background:var(--background-2); color:var(--color); font-size:12px; line-height:1; transition:background-color var(--ease);}
+.month-nav button:hover {background:var(--line-2);}
+.month-nav button:disabled {opacity:.35; cursor:not-allowed;}
+.month-nav-label {font-size:11px; font-weight:700; color:var(--color); min-width:44px; text-align:center;}
 
 /* ---- REST(휴가일) view ----------------------------------------------------- */
 .rest-input-card {display:flex; flex-direction:column; gap:14px;}
@@ -573,8 +583,11 @@ button:has( > .loading-in-button), a:has( > .loading-in-button) {position:relati
 
 /* ---- responsive ---------------------------------------------------------- */
 @media (max-width:1180px) {
+    /* 좁은 화면에서는 task-side가 오른쪽 고정 열이 아니라 아래로 이어지는 카드
+       묶음이 되므로, 각자 스크롤하게 가두지 않고 다시 페이지 전체 스크롤로 되돌린다. */
+    #view-task {height:auto; overflow:visible;}
     .task-body {flex-direction:column;}
-    .task-side {width:auto; flex-direction:row; flex-wrap:wrap;}
+    .task-side {width:auto; flex-direction:row; flex-wrap:wrap; overflow:visible;}
     .task-side > * {flex:1 1 260px;}
     .reports-wrap {flex-direction:column;}
     .reports-side {width:auto; flex-direction:row; flex-wrap:wrap;}
