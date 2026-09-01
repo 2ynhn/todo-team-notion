@@ -209,11 +209,14 @@ a {text-decoration:none; color:var(--color);}
 #Ysubmit {padding:0 16px; height:30px; border-radius:7px; background:var(--point-2); color:#fff; font-size:12px; font-weight:700; transition:filter var(--ease);}
 #Ysubmit:hover {filter:brightness(1.06);}
 
+/* Task 뷰만 높이를 뷰포트에 고정하고(overflow:hidden), .task-main과 .task-side가
+   각자 자기 영역 안에서만 스크롤되게 한다. 다른 뷰는 여전히 .views 전체가 스크롤된다. */
+#view-task {height:100%; overflow:hidden;}
 .task-body {flex:1; display:flex; gap:16px; min-height:0;}
-.task-main {flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; min-height:0;}
+.task-main {flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; min-height:0; overflow-y:auto;}
 .task-list-card {
     --row-cols: 16px 76px 1.6fr 56px 64px 1fr 108px;
-    flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;
+    flex:1; min-width:0; background:var(--background-3); border:1px solid var(--line); border-radius:var(--radius-lg); display:flex; flex-direction:column;
 }
 .task-list-head {display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line);}
 .task-list-title {font-weight:700; font-size:13px; color:var(--color);}
@@ -229,7 +232,7 @@ a {text-decoration:none; color:var(--color);}
 .grid-head > div:nth-child(4), .grid-head > div:nth-child(5) {text-align:center;}
 .grid-head > div:last-child {text-align:right;}
 
-.work-list {flex:1; overflow:auto; font-size:12.5px;}
+.work-list {flex:1; font-size:12.5px;}
 .ul {}
 
 .li {
@@ -274,11 +277,22 @@ li.ended .date {font-weight:400; opacity:.85;}
 .li.current {background-color:color-mix(in srgb, var(--point-2) 14%, transparent);}
 .li.flag {background-color:color-mix(in srgb, var(--warning) 18%, transparent);}
 .li.flag:hover {background-color:color-mix(in srgb, var(--warning) 24%, transparent);}
-.li .fn-update {display:none; position: absolute;top: calc(50% - 2px);left: 2px; transform: translateY(-50%);}
-.li .fn-update button {position: relative;width: 8px;height: 12px;}
-.li .fn-update button::before {position: absolute; top: 50%;left: 50%;transform: translate(-50%, -50%); content: '▲'; font-size: 12px;font-weight: 700;}
-.li:hover .fn-update {display:block; opacity: .2;}
-.li:hover .fn-update:hover {opacity: .8;}
+
+/* 드래그 핸들: 날짜 왼쪽(예전 .fn-update 자리)에 겹쳐 보이는, 클릭이 아닌
+   드래그 전용 아이콘. 그리드 컬럼 흐름에 끼어들지 않도록 absolute. */
+.li .drag-handle {
+    display:none; position:absolute; top:50%; left:2px; transform:translateY(-50%);
+    width:14px; height:14px; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    cursor:grab;
+}
+.li .drag-handle i {display:block; width:10px; height:1.5px; border-radius:1px; background:var(--color-2);}
+.li:hover .drag-handle {display:flex; opacity:.35;}
+.li:hover .drag-handle:hover {opacity:.9;}
+.li .drag-handle:active {cursor:grabbing;}
+
+.li.dragging {opacity:.4;}
+.li.drag-over-before {box-shadow:inset 0 2px 0 0 var(--point-2);}
+.li.drag-over-after {box-shadow:inset 0 -2px 0 0 var(--point-2);}
 
 .li .edit-button, .li .delete-button, .li .end-button, .li .save-button, .li .url, .li .cancel-button {
     opacity:.55; flex-shrink:0; cursor:pointer; text-indent:-999px; overflow:hidden;
@@ -437,6 +451,13 @@ body:has(.li.edit) .topbar, body:has(.li.edit) .js-toDoForm {pointer-events:none
 .chip-cloud .chip.chip-top {background:#eef2ff; color:var(--point-2); font-weight:600;}
 .reports-member-card .hbar-row .hbar-track {height:8px; background:var(--background-2);}
 .reports-member-card .hbar-row .hbar-value {font-size:11px; color:var(--color-2); font-weight:400;}
+.reports-member-head {display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.reports-member-head .card-title {margin-bottom:0;}
+.month-nav {display:flex; align-items:center; gap:6px;}
+.month-nav button {width:20px; height:20px; border-radius:6px; background:var(--background-2); color:var(--color); font-size:12px; line-height:1; transition:background-color var(--ease);}
+.month-nav button:hover {background:var(--line-2);}
+.month-nav button:disabled {opacity:.35; cursor:not-allowed;}
+.month-nav-label {font-size:11px; font-weight:700; color:var(--color); min-width:44px; text-align:center;}
 
 /* ---- REST(휴가일) view ----------------------------------------------------- */
 .rest-input-card {display:flex; flex-direction:column; gap:14px;}
@@ -573,8 +594,11 @@ button:has( > .loading-in-button), a:has( > .loading-in-button) {position:relati
 
 /* ---- responsive ---------------------------------------------------------- */
 @media (max-width:1180px) {
+    /* 좁은 화면에서는 task-side가 오른쪽 고정 열이 아니라 아래로 이어지는 카드
+       묶음이 되므로, 각자 스크롤하게 가두지 않고 다시 페이지 전체 스크롤로 되돌린다. */
+    #view-task {height:auto; overflow:visible;}
     .task-body {flex-direction:column;}
-    .task-side {width:auto; flex-direction:row; flex-wrap:wrap;}
+    .task-side {width:auto; flex-direction:row; flex-wrap:wrap; overflow:visible;}
     .task-side > * {flex:1 1 260px;}
     .reports-wrap {flex-direction:column;}
     .reports-side {width:auto; flex-direction:row; flex-wrap:wrap;}
@@ -599,6 +623,6 @@ button:has( > .loading-in-button), a:has( > .loading-in-button) {position:relati
 }
 
 /* ---- scrollbars ------------------------------------------------------------ */
-.views, .task-side, .work-list, .layer .cont .str, #keywords, #mmCont {scrollbar-width:thin; scrollbar-color:var(--line-2) transparent;}
-.views::-webkit-scrollbar, .work-list::-webkit-scrollbar, .layer .cont .str::-webkit-scrollbar, #keywords::-webkit-scrollbar, #mmCont::-webkit-scrollbar {width:8px;}
-.views::-webkit-scrollbar-thumb, .work-list::-webkit-scrollbar-thumb, .layer .cont .str::-webkit-scrollbar-thumb, #keywords::-webkit-scrollbar-thumb, #mmCont::-webkit-scrollbar-thumb {background-color:var(--line-2); border-radius:8px;}
+.views, .task-main, .task-side, .layer .cont .str, #keywords, #mmCont {scrollbar-width:thin; scrollbar-color:var(--line-2) transparent;}
+.views::-webkit-scrollbar, .task-main::-webkit-scrollbar, .layer .cont .str::-webkit-scrollbar, #keywords::-webkit-scrollbar, #mmCont::-webkit-scrollbar {width:8px;}
+.views::-webkit-scrollbar-thumb, .task-main::-webkit-scrollbar-thumb, .layer .cont .str::-webkit-scrollbar-thumb, #keywords::-webkit-scrollbar-thumb, #mmCont::-webkit-scrollbar-thumb {background-color:var(--line-2); border-radius:8px;}

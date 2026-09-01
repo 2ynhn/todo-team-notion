@@ -300,8 +300,16 @@ function buildTodoRowHTML(todo, isMaster) {
 		`;
 	}
 
+	// 드래그 핸들(순서/날짜 변경). position:absolute라 그리드 컬럼 흐름에 끼어들지
+	// 않고, .fn-update가 있던 자리(날짜 왼쪽)에 그대로 겹쳐 보인다. master만 자신의
+	// todos 배열을 재정렬/저장할 수 있으므로 master일 때만 렌더링한다.
+	const dragHandle = isMaster
+		? `<div class="drag-handle" draggable="true" title="드래그하여 순서/날짜 변경"><i></i><i></i><i></i></div>`
+		: '';
+
 	return `
 		<button type="button" class="flag" title="중요 표시" onclick="toggleFlag(this)"></button>
+		${dragHandle}
 		<span class="date">${todo.date ?? ''}</span>
 		<span${titleAttr}>${todo.title ?? ''}${detailBtn}</span>
 		<span class="col-mm${hasMonth ? '' : ' is-empty'}">${mmCell}</span>
@@ -378,9 +386,6 @@ function renderTodos(todos) {
 	keywordInit();
 	dateColorize();
 	markWeekStart();
-	if (isMaster) {
-		uptodate();
-	}
 	mMonthInit(todos);
 
 	loadPlugins();
@@ -1026,6 +1031,13 @@ function currentMonthKey() {
 	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+// offset=0 -> 이번 달, -1 -> 지난 달, +1 -> 다음 달 식의 "YYYY-MM" 키
+function monthKeyFromOffset(offset) {
+	const now = new Date();
+	const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
 function monthKeyOf(dateStr) {
 	const d = new Date(dateStr);
 	if (isNaN(d)) return null;
@@ -1350,6 +1362,9 @@ async function renderSyncView() {
 }
 
 /* ---------------------- Reports 뷰 ---------------------- */
+let reportMemberMonthOffset = 0; // 0=이번 달, 음수=이전 달들
+let reportMemberMMMap = null; // 이전/다음 버튼 클릭 시 재조회 없이 다시 그리기 위한 캐시
+
 async function renderReportsView() {
 	const countChartEl = document.getElementById('report-count-chart');
 	const mmTrendEl = document.getElementById('report-mm-trend');
@@ -1418,11 +1433,43 @@ async function renderReportsView() {
 		? sortedKeywords.map(([k, c], i) => `<span class="chip${i === 0 ? ' chip-top' : ''}">${k} · ${c}</span>`).join('')
 		: '<p class="muted-note">키워드가 없습니다.</p>';
 
-	// 팀원별 M/M (이번 달)
-	const monthKey = currentMonthKey();
+	// 팀원별 M/M: 이전/다음 달 버튼으로 다른 달도 확인할 수 있게 offset 기반으로 그린다.
+	reportMemberMMMap = map;
+	reportMemberMonthOffset = 0;
+	initReportMemberMonthNav();
+	renderReportMemberMM();
+}
+
+function initReportMemberMonthNav() {
+	const prevBtn = document.getElementById('report-member-mm-prev');
+	const nextBtn = document.getElementById('report-member-mm-next');
+	if (!prevBtn || !nextBtn || prevBtn.dataset.bound) return;
+	prevBtn.dataset.bound = '1';
+	nextBtn.dataset.bound = '1';
+	prevBtn.addEventListener('click', () => {
+		reportMemberMonthOffset -= 1;
+		renderReportMemberMM();
+	});
+	nextBtn.addEventListener('click', () => {
+		if (reportMemberMonthOffset >= 0) return;
+		reportMemberMonthOffset += 1;
+		renderReportMemberMM();
+	});
+}
+
+function renderReportMemberMM() {
+	const memberMMEl = document.getElementById('report-member-mm');
+	const labelEl = document.getElementById('report-member-mm-label');
+	const nextBtn = document.getElementById('report-member-mm-next');
+	if (!memberMMEl || !reportMemberMMMap) return;
+
+	const monthKey = monthKeyFromOffset(reportMemberMonthOffset);
+	if (labelEl) labelEl.textContent = reportMemberMonthOffset === 0 ? '이번 달' : formatMonthLabel(monthKey);
+	if (nextBtn) nextBtn.disabled = reportMemberMonthOffset >= 0;
+
 	const perUser = (users || []).filter((u) => u.active).map((u) => ({
 		user: u,
-		mm: sumMonthValue(map[u.id] || [], monthKey),
+		mm: sumMonthValue(reportMemberMMMap[u.id] || [], monthKey),
 	})).sort((a, b) => b.mm - a.mm);
 	const maxUserMM = Math.max(0.01, ...perUser.map((p) => p.mm));
 	memberMMEl.innerHTML = perUser.length
@@ -1904,30 +1951,90 @@ function renderThemeGridOptions(grid) {
    항상 켜져 있는 내장 기능으로 병합한다. reload-everyday.js는 제거했다.
    ========================================================================= */
 
-// ---- ui.js 병합: 키워드 태그 / 날짜 색상 / 주 구분선 / 상세보기 모달 / 다음날짜 이동 ----
+// ---- ui.js 병합: 키워드 태그 / 날짜 색상 / 주 구분선 / 상세보기 모달 ----
 
-function uptodate() {
-	const li = document.querySelectorAll('#todo-list .li');
-	li.forEach((item) => {
-		const upBtn = `<div class="fn-update"><button title="다음 날짜로 이동"></button></div>`;
-		item.insertAdjacentHTML('beforeend', upBtn);
-		const btn = item.querySelector('.fn-update button');
-		btn.addEventListener('click', function () {
-			const thisID = item.getAttribute('id');
-			const today = item.querySelector('.date').innerHTML;
-			const nextday = new Date(today);
-			nextday.setUTCDate(nextday.getUTCDate() + 1);
-			const next = nextday.toISOString().substr(0, 10);
-			todos.map(function (a) {
-				if (a.id == thisID) {
-					a.date = next;
-				}
-			});
-			saveTodos();
-			renderTodos(todos);
-		});
+/* =========================================================================
+   업무 순서/날짜 드래그 변경. .drag-handle(날짜 왼쪽, 예전 .fn-update 자리)로만
+   드래그를 시작할 수 있고, 놓은 위치의 이웃 업무 날짜를 그대로 물려받는다.
+   목록은 항상 날짜 내림차순으로 재정렬되므로(Array.sort는 안정 정렬이라 같은
+   날짜끼리는 배열 순서가 유지됨), 드래그로 배열 순서 + 날짜를 함께 맞춰주면
+   재정렬 뒤에도 놓은 자리 그대로 보인다.
+   ========================================================================= */
+let dragSourceId = null;
+
+function clearDragOverMarkers() {
+	document.querySelectorAll('#todo-list .li.drag-over-before, #todo-list .li.drag-over-after').forEach((el) => {
+		el.classList.remove('drag-over-before', 'drag-over-after');
 	});
 }
+
+todoList.addEventListener('dragstart', (e) => {
+	const handle = e.target.closest('.drag-handle');
+	const li = handle && handle.closest('.li');
+	if (!li) {
+		e.preventDefault();
+		return;
+	}
+	dragSourceId = li.id;
+	e.dataTransfer.effectAllowed = 'move';
+	e.dataTransfer.setData('text/plain', li.id);
+	// 핸들만 잡았어도 행 전체가 따라다니는 것처럼 보이도록 드래그 이미지를 li로 지정
+	const rect = li.getBoundingClientRect();
+	e.dataTransfer.setDragImage(li, e.clientX - rect.left, e.clientY - rect.top);
+	li.classList.add('dragging');
+});
+
+todoList.addEventListener('dragover', (e) => {
+	if (!dragSourceId) return;
+	const targetLi = e.target.closest('.li');
+	if (!targetLi || targetLi.id === dragSourceId) return;
+	e.preventDefault();
+	e.dataTransfer.dropEffect = 'move';
+
+	const rect = targetLi.getBoundingClientRect();
+	const isAfter = e.clientY - rect.top > rect.height / 2;
+	clearDragOverMarkers();
+	targetLi.classList.add(isAfter ? 'drag-over-after' : 'drag-over-before');
+});
+
+todoList.addEventListener('drop', (e) => {
+	if (!dragSourceId) return;
+	e.preventDefault();
+	clearDragOverMarkers();
+
+	const targetLi = e.target.closest('.li');
+	const srcId = dragSourceId;
+	dragSourceId = null;
+	if (!targetLi || targetLi.id === srcId) return;
+
+	const sourceIndex = todos.findIndex((t) => t.id === srcId);
+	let targetIndex = todos.findIndex((t) => t.id === targetLi.id);
+	if (sourceIndex === -1 || targetIndex === -1) return;
+
+	const rect = targetLi.getBoundingClientRect();
+	const isAfter = e.clientY - rect.top > rect.height / 2;
+	const targetDate = todos[targetIndex].date;
+
+	const [dragged] = todos.splice(sourceIndex, 1);
+	if (sourceIndex < targetIndex) targetIndex -= 1;
+	const insertAt = isAfter ? targetIndex + 1 : targetIndex;
+	dragged.date = targetDate;
+	todos.splice(insertAt, 0, dragged);
+
+	countingTodo(todos);
+	saveTodos();
+	syncMasterAggregate();
+	if (typeof mMonthInit !== 'undefined') {
+		mMonthInit(todos);
+	}
+	renderTodos(todos);
+});
+
+todoList.addEventListener('dragend', () => {
+	dragSourceId = null;
+	document.querySelectorAll('#todo-list .li.dragging').forEach((el) => el.classList.remove('dragging'));
+	clearDragOverMarkers();
+});
 
 function dateColorize() {
 	let dateArr = []; // [-3day, -2day, yesterday, today, tomorrow, +2day, +3day]
