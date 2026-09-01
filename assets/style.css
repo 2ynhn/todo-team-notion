@@ -277,11 +277,22 @@ li.ended .date {font-weight:400; opacity:.85;}
 .li.current {background-color:color-mix(in srgb, var(--point-2) 14%, transparent);}
 .li.flag {background-color:color-mix(in srgb, var(--warning) 18%, transparent);}
 .li.flag:hover {background-color:color-mix(in srgb, var(--warning) 24%, transparent);}
-.li .fn-update {display:none; position: absolute;top: calc(50% - 2px);left: 2px; transform: translateY(-50%);}
-.li .fn-update button {position: relative;width: 8px;height: 12px;}
-.li .fn-update button::before {position: absolute; top: 50%;left: 50%;transform: translate(-50%, -50%); content: '▲'; font-size: 12px;font-weight: 700;}
-.li:hover .fn-update {display:block; opacity: .2;}
-.li:hover .fn-update:hover {opacity: .8;}
+
+/* 드래그 핸들: 날짜 왼쪽(예전 .fn-update 자리)에 겹쳐 보이는, 클릭이 아닌
+   드래그 전용 아이콘. 그리드 컬럼 흐름에 끼어들지 않도록 absolute. */
+.li .drag-handle {
+    display:none; position:absolute; top:50%; left:2px; transform:translateY(-50%);
+    width:14px; height:14px; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    cursor:grab;
+}
+.li .drag-handle i {display:block; width:10px; height:1.5px; border-radius:1px; background:var(--color-2);}
+.li:hover .drag-handle {display:flex; opacity:.35;}
+.li:hover .drag-handle:hover {opacity:.9;}
+.li .drag-handle:active {cursor:grabbing;}
+
+.li.dragging {opacity:.4;}
+.li.drag-over-before {box-shadow:inset 0 2px 0 0 var(--point-2);}
+.li.drag-over-after {box-shadow:inset 0 -2px 0 0 var(--point-2);}
 
 .li .edit-button, .li .delete-button, .li .end-button, .li .save-button, .li .url, .li .cancel-button {
     opacity:.55; flex-shrink:0; cursor:pointer; text-indent:-999px; overflow:hidden;
