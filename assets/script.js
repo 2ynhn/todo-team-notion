@@ -658,7 +658,10 @@ if (notionImportBtn) {
 			const res = await fetch(`/notion-page-info?url=${encodeURIComponent(url)}`);
 			const data = await res.json();
 			if (!res.ok) {
-				alert(data.error || '노션 페이지 정보를 가져오지 못했습니다.');
+				// details(노션 API가 준 실제 실패 사유)를 함께 보여줘야 "왜" 실패했는지
+				// (URL 파싱 문제인지, 이 연동에 페이지가 공유 안 됐는지 등) 바로 알 수 있다.
+				const message = [data.error, data.details].filter(Boolean).join('\n\n');
+				alert(message || '노션 페이지 정보를 가져오지 못했습니다.');
 				return;
 			}
 

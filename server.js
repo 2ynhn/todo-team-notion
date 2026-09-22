@@ -265,7 +265,10 @@ const syncMetaPath = path.join(__dirname, 'data', 'sync-meta.json');
 function extractNotionPageId(url) {
   if (typeof url !== 'string') return null;
   const stripped = url.replace(/-/g, '');
-  const match = stripped.match(/([0-9a-f]{32})(?:[?#]|$)/i);
+  // 32자리 hex 뒤에 "?", "#"만 허용하면 끝에 "/"가 붙은 URL(흔함)을 놓친다.
+  // 더 긴 hex 런의 일부만 집히지 않도록, 뒤에 hex가 아닌 문자가 오거나 문자열이
+  // 끝나면 된다는 조건(부정형 lookahead)만 걸어서 "/", "?", "#", 끝 모두 허용한다.
+  const match = stripped.match(/([0-9a-f]{32})(?![0-9a-f])/i);
   if (!match) return null;
   const hex = match[1];
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
