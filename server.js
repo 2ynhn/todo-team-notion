@@ -322,8 +322,16 @@ app.get('/notion-page-info', async (req, res) => {
 
     res.json({ title, assignee });
   } catch (e) {
-    // 가장 흔한 원인: 이 페이지가 연동에 공유되지 않은 경우(Notion 쪽에서 404로 내려옴)
     console.error('[notion-page-info] failed:', e.message || e);
+    // 가장 흔한 원인: 이 페이지가 연동(integration)에 공유되지 않은 경우.
+    // Notion API가 object_not_found로 내려주므로, 매번 재발할 수 있는 이 케이스는
+    // 원문 영어 메시지 대신 실제로 취해야 할 조치를 바로 안내한다.
+    if (e.code === 'object_not_found') {
+      return res.status(500).json({
+        error: '이 노션 페이지가 "todo-list" 연동에 공유되어 있지 않습니다.',
+        details: '노션 페이지에서 "···" 메뉴 → "연결 추가"(Connections) → "todo-list"를 선택해 공유한 뒤 다시 시도하세요.',
+      });
+    }
     res.status(500).json({ error: 'failed to load Notion page', details: e.message || String(e) });
   }
 });
