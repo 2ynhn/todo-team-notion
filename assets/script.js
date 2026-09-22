@@ -654,28 +654,54 @@ const NOTION_BOOKMARKLET_SOURCE = `(function () {
     return (document.title || '').replace(/\\s*[-|–—]\\s*Notion\\s*$/i, '').trim();
   }
   function findPropertyValue(label) {
-    var all = document.querySelectorAll('div, span');
-    for (var i = 0; i < all.length; i++) {
-      var el = all[i];
-      if (el.children.length === 0 && el.textContent.trim() === label) {
-        var node = el;
-        for (var depth = 0; depth < 6 && node; depth++) {
-          var text = node.textContent.trim();
-          if (text.length > label.length) {
-            var rest = text.slice(text.indexOf(label) + label.length).trim();
-            if (rest) return rest;
-          }
-          node = node.parentElement;
+    function pickName(valueEl) {
+      var names = Array.prototype.map.call(valueEl.querySelectorAll('.notranslate'), function (n) {
+        return n.textContent.trim();
+      }).filter(Boolean);
+      if (names.length) return names[0];
+      return valueEl.textContent.trim();
+    }
+
+    var labelLeaves = Array.prototype.filter.call(document.querySelectorAll('div, span'), function (el) {
+      return el.children.length === 0 && el.textContent.trim() === label;
+    });
+
+    // 라벨(담당자_기획)과 값은 형제가 아니라 같은 role="row" 아래 서로 다른 셀에
+    // 들어있고, 사람 이름은 아바타 이니셜과 달리 .notranslate 안에 렌더링된다.
+    for (var i = 0; i < labelLeaves.length; i++) {
+      var row = labelLeaves[i].closest('[role="row"]');
+      var valueEl = row && row.querySelector('[data-testid="property-value"]');
+      if (valueEl) {
+        var name = pickName(valueEl);
+        if (name) return name;
+      }
+    }
+
+    // role="row"/data-testid가 없는 레이아웃을 위한 폴백: 라벨에서 위로 올라가며
+    // 텍스트가 라벨보다 길어지는 지점(값이 같이 잡히는 조상)을 찾는다.
+    for (var j = 0; j < labelLeaves.length; j++) {
+      var node = labelLeaves[j];
+      for (var depth = 0; depth < 10 && node; depth++) {
+        var text = node.textContent.trim();
+        if (text.length > label.length) {
+          var rest = text.slice(text.indexOf(label) + label.length).trim();
+          if (rest) return rest;
         }
+        node = node.parentElement;
       }
     }
     return '';
+  }
+  // 이름이 "제이(김정기)"처럼 괄호를 포함하면 괄호 안 내용을 실제 이름으로 쓴다.
+  function extractParenName(raw) {
+    var m = raw && raw.match(/\\(([^)]+)\\)/);
+    return m ? m[1].trim() : (raw || '').trim();
   }
   var payload = {
     source: 'notion-import-bookmarklet',
     url: location.href,
     title: findTitle(),
-    assignee: findPropertyValue('담당자_기획'),
+    assignee: extractParenName(findPropertyValue('담당자_기획')),
   };
   navigator.clipboard.writeText(JSON.stringify(payload)).then(function () {
     alert('복사됨\\n제목: ' + payload.title + '\\n담당자: ' + (payload.assignee || '(없음)') + '\\n\\nTo-do 페이지에서 "노션 정보로 입력하기" 버튼을 다시 눌러주세요.');
