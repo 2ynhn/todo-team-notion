@@ -644,6 +644,39 @@ addButton.addEventListener('click', () => {
 	todoMonth.value = '';
 });
 
+// "노션 URL로 등록": URL을 입력하면 해당 노션 페이지의 제목/담당자를 읽어와
+// #Yurl / #Ytitle을 자동으로 채운다. 서버(/notion-page-info)가 Notion API로
+// 페이지 속성(title, '담당자_기획')을 조회해서 내려준다.
+const notionImportBtn = document.getElementById('notion-import-btn');
+if (notionImportBtn) {
+	notionImportBtn.addEventListener('click', async () => {
+		const url = prompt('노션 페이지 URL을 입력하세요');
+		if (!url) return;
+
+		notionImportBtn.disabled = true;
+		try {
+			const res = await fetch(`/notion-page-info?url=${encodeURIComponent(url)}`);
+			const data = await res.json();
+			if (!res.ok) {
+				alert(data.error || '노션 페이지 정보를 가져오지 못했습니다.');
+				return;
+			}
+
+			todoUrl.value = url;
+
+			// 제목 속 대괄호는 소괄호로 바꾼다("[디자인]" -> "(디자인)") — 이 앱에서
+			// 제목 맨 앞 대괄호를 키워드 구분자로 쓰기 때문에 겹치면 안 된다.
+			const safeTitle = (data.title || '').replace(/\[/g, '(').replace(/\]/g, ')');
+			todoTitle.value = data.assignee ? `[${data.assignee}] ${safeTitle}` : safeTitle;
+		} catch (e) {
+			console.error('notion-page-info fetch failed:', e);
+			alert('노션 페이지 정보를 가져오지 못했습니다.');
+		} finally {
+			notionImportBtn.disabled = false;
+		}
+	});
+}
+
 todoList.addEventListener('click', (event) => {
 	if (event.target.classList.contains('delete-button')) {
 		var result = confirm('Want to delete?');
