@@ -301,22 +301,24 @@ function buildTodoRowHTML(todo, isMaster) {
 	}
 
 	// 드래그 핸들(순서/날짜 변경). position:absolute라 그리드 컬럼 흐름에 끼어들지
-	// 않고, .fn-update가 있던 자리(날짜 왼쪽)에 그대로 겹쳐 보인다. master만 자신의
-	// todos 배열을 재정렬/저장할 수 있으므로 master일 때만 렌더링한다.
+	// 않고, .fn-update가 있던 자리(날짜 왼쪽)에 겹쳐 보인다. 왼쪽부터 드래그 ->
+	// 다음 날짜 -> 중요 표시 순서로 놓이도록 이 셋 중 가장 왼쪽에 위치한다.
+	// master만 자신의 todos 배열을 재정렬/저장할 수 있으므로 master일 때만 렌더링한다.
 	const dragHandle = isMaster
 		? `<div class="drag-handle" draggable="true" title="드래그하여 순서/날짜 변경"><i></i><i></i><i></i></div>`
 		: '';
 
-	// "다음 날짜로 이동" 버튼(예전 .fn-update). 드래그 핸들과 같은 자리에 겹쳐 보이는
-	// 또 하나의 hover 아이콘이라, master의 재정렬 권한과 마찬가지로 master만 노출한다.
+	// "다음 날짜로 이동" 버튼(예전 .fn-update). 드래그 핸들과 중요 표시 사이에 겹쳐
+	// 보이는 또 하나의 hover 아이콘이라, master의 재정렬 권한과 마찬가지로 master일
+	// 때만 노출한다.
 	const nextDateBtn = isMaster
 		? `<button type="button" class="next-date" title="다음 날짜로 이동" onclick="moveToNextDate(this)">→</button>`
 		: '';
 
 	return `
-		<button type="button" class="flag" title="중요 표시" onclick="toggleFlag(this)"></button>
-		${nextDateBtn}
 		${dragHandle}
+		${nextDateBtn}
+		<button type="button" class="flag" title="중요 표시" onclick="toggleFlag(this)"></button>
 		<span class="date">${todo.date ?? ''}</span>
 		<span${titleAttr}>${todo.title ?? ''}${detailBtn}</span>
 		<span class="col-mm${hasMonth ? '' : ' is-empty'}">${mmCell}</span>

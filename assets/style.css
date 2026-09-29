@@ -244,7 +244,9 @@ a {text-decoration:none; color:var(--color);}
     position:relative; display:grid; grid-template-columns:var(--row-cols); align-items:center; gap:10px; width:100%;
     padding:9px 16px; line-height:1.5; transition:background-color var(--ease);
 }
-.li .flag {width:16px; height:16px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+/* 컬럼1(36px) 안에서 드래그 핸들 -> 다음 날짜 -> 중요 표시 순서로 왼쪽부터 보이도록,
+   flag는 그리드 아이템 자리(컬럼 폭/정렬)는 그대로 두고 시각적으로만 오른쪽 끝으로 민다. */
+.li .flag {position:relative; left:20px; width:16px; height:16px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .li .flag::before {content:''; width:8px; height:8px; border-radius:50%; background:var(--point-2); transition:background-color var(--ease);}
 .li.ended .flag::before {background:var(--color-2);}
 /* .li.day-in-1:not(.ended) .flag::before, .li.day-in-2:not(.ended) .flag::before, .li.day-in-3:not(.ended) .flag::before {background:var(--danger);} */
@@ -295,11 +297,11 @@ li.ended .date {font-weight:400; opacity:.85;}
 .li:hover .drag-handle:hover {opacity:.9;}
 .li .drag-handle:active {cursor:grabbing;}
 
-/* "다음 날짜로 이동" 버튼: 예전 .fn-update와 같은 기능을, 드래그 핸들이 .flag
-   왼쪽 여백에 자리잡는 것과 마찬가지로 .flag 오른쪽 여백에 겹쳐 보이게 되살렸다.
-   (컬럼1 너비를 36px로 넓혀서 flag(16px) 오른쪽에 이 아이콘이 들어갈 자리를 만들었다.) */
+/* "다음 날짜로 이동" 버튼: 예전 .fn-update와 같은 기능을, 드래그 핸들과 중요 표시
+   사이(왼쪽부터 드래그 -> 다음 날짜 -> 중요 표시)에 겹쳐 보이게 되살렸다.
+   (컬럼1 너비를 36px로 넓혀서 이 아이콘이 들어갈 자리를 만들었다.) */
 .li .next-date {
-    display:none; position:absolute; top:50%; left:35px; transform:translateY(-50%);
+    display:none; position:absolute; top:50%; left:20px; transform:translateY(-50%);
     width:14px; height:14px; align-items:center; justify-content:center;
     font-size:12px; line-height:1; color:var(--color-2); cursor:pointer;
 }
