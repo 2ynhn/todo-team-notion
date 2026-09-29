@@ -307,8 +307,15 @@ function buildTodoRowHTML(todo, isMaster) {
 		? `<div class="drag-handle" draggable="true" title="드래그하여 순서/날짜 변경"><i></i><i></i><i></i></div>`
 		: '';
 
+	// "다음 날짜로 이동" 버튼(예전 .fn-update). 드래그 핸들과 같은 자리에 겹쳐 보이는
+	// 또 하나의 hover 아이콘이라, master의 재정렬 권한과 마찬가지로 master만 노출한다.
+	const nextDateBtn = isMaster
+		? `<button type="button" class="next-date" title="다음 날짜로 이동" onclick="moveToNextDate(this)">→</button>`
+		: '';
+
 	return `
 		<button type="button" class="flag" title="중요 표시" onclick="toggleFlag(this)"></button>
+		${nextDateBtn}
 		${dragHandle}
 		<span class="date">${todo.date ?? ''}</span>
 		<span${titleAttr}>${todo.title ?? ''}${detailBtn}</span>
@@ -335,6 +342,28 @@ function toggleFlag(btn) {
 		ids.delete(id);
 	}
 	saveFlaggedIds(ids);
+}
+
+// "다음 날짜로 이동": 날짜를 하루 뒤로 미룬다(예전 .fn-update와 동일한 동작).
+// new Date('YYYY-MM-DD')는 UTC 자정으로 해석되므로 setUTCDate로 하루를 더해야
+// 로컬 타임존에 따라 날짜가 하루씩 밀리는 걸 피할 수 있다.
+function moveToNextDate(btn) {
+	const li = btn.closest('.li');
+	const id = li.getAttribute('id');
+	const todo = todos.find((t) => t.id === id);
+	if (!todo || !todo.date) return;
+
+	const nextDate = new Date(todo.date);
+	nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+	todo.date = nextDate.toISOString().slice(0, 10);
+
+	countingTodo(todos);
+	saveTodos();
+	syncMasterAggregate();
+	if (typeof mMonthInit !== 'undefined') {
+		mMonthInit(todos);
+	}
+	renderTodos(todos);
 }
 
 function renderTodos(todos) {
